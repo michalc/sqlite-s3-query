@@ -15,7 +15,12 @@ from sqlite_s3_query import sqlite_s3_query
 results_iter = sqlite_s3_query(
     'SELECT * FROM my_table ORDER BY my_column',
     url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite',
-    get_credentials=lambda: (os.environ['AWS_ACCESS_KEY_ID'], os.environ['AWS_SECRET_ACCESS_KEY']),
+    get_credentials=lambda: (
+        os.environ['AWS_DEFAULT_REGION'],
+        os.environ['AWS_ACCESS_KEY_ID'],
+        os.environ['AWS_SECRET_ACCESS_KEY'],
+        os.environ.get('AWS_SESSION_TOKEN'),  # Only needed for temporary credentials
+    ),
 )
 
 for row in results_iter:
@@ -30,7 +35,12 @@ from sqlite_s3_query import sqlite_s3_query
 
 query_my_db = partial(sqlite_s3_query,
     url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite',
-    get_credentials=lambda: (os.environ['AWS_ACCESS_KEY_ID'], os.environ['AWS_SECRET_ACCESS_KEY']),
+    get_credentials=lambda: (
+        os.environ['AWS_DEFAULT_REGION'],
+        os.environ['AWS_ACCESS_KEY_ID'],
+        os.environ['AWS_SECRET_ACCESS_KEY'],
+        os.environ.get('AWS_SESSION_TOKEN'),  # Only needed for temporary credentials
+    ),
 )
 
 for row in query_my_db('SELECT * FROM my_table_1 ORDER BY my_column'):
