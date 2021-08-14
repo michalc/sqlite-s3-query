@@ -24,7 +24,7 @@ class TestSqliteS3Query(unittest.TestCase):
         put_object('my-bucket', 'my.db', db)
 
         rows = list(sqlite_s3_query('SELECT my_col_a FROM my_table',
-            'http://localhost:9000/my-bucket/my.db', (), get_credentials=lambda: (
+            'http://localhost:9000/my-bucket/my.db', params=(), get_credentials=lambda: (
                 'us-east-1',
                 'AKIAIOSFODNN7EXAMPLE',
                 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
@@ -32,6 +32,24 @@ class TestSqliteS3Query(unittest.TestCase):
         )))
         self.assertEqual(rows, [('some-text-a',)] * 500)
 
+    def test_placeholder(self):
+        db = get_db([
+            "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+        ] + [
+            "INSERT INTO my_table VALUES ('a','b'),('c','d')",
+        ])
+
+        put_object('my-bucket', 'my.db', db)
+
+        rows = list(sqlite_s3_query(
+            "SELECT my_col_a FROM my_table WHERE my_col_b = ?", params=(('d',)),
+            url='http://localhost:9000/my-bucket/my.db', get_credentials=lambda: (
+                'us-east-1',
+                'AKIAIOSFODNN7EXAMPLE',
+                'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+                None,
+        )))
+        self.assertEqual(rows, [('c',)])
 
 def put_object(bucket, key, content):
     create_bucket(bucket)
