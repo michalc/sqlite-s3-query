@@ -1,6 +1,6 @@
 # sqlite-s3-query
 
-Python function to query a SQLite file stored on S3. It uses HTTP range requests to avoid downloading the entire database.
+Python function to query a SQLite file stored on S3. It uses HTTP range requests to avoid downloading the entire database, and so is suitable for large databases. Operations that write to the database are not supported.
 
 > Work-in-progress. This README serves as a rough design spec.
 
