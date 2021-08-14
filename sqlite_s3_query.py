@@ -39,7 +39,7 @@ def sqlite_s3_query(sql, url, params=(), get_credentials=lambda: (
             self.get_range = get_range
 
         def xRead(self, amount, offset):
-            return get_range(offset, offset + amount)
+            return get_range(offset, offset + amount - 1)
 
         def xFileSize(self):
             return self.size
