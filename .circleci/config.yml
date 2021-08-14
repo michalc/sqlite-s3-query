@@ -1,0 +1,31 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: python:3.7.8
+      - image: minio/minio:RELEASE.2021-08-05T22-01-19Z
+        environment:
+          MINIO_ACCESS_KEY: AKIAIOSFODNN7EXAMPLE
+          MINIO_SECRET_KEY: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+          MINIO_REGION: us-east-1
+        entrypoint: sh
+        command: ['-c', 'mkdir -p /data1 && mkdir -p /data2 && mkdir -p /data3 && mkdir -p /data4 && minio server /data{1...4}']
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: |
+            pip install .
+            pip install https://github.com/rogerbinns/apsw/releases/download/3.36.0-r1/apsw-3.36.0-r1.zip --global-option=fetch --global-option=--version --global-option=3.36.0 --global-option=--all --global-option=build --global-option=--enable-all-extensions
+            pip install coverage
+            curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+            chmod +x ./cc-test-reporter
+      - run:
+          name: Run tests
+          command: |
+            set -xu
+            ./cc-test-reporter before-build
+            coverage run -m unittest
+            EXIT_CODE=$?
+            coverage xml
+            ./cc-test-reporter after-build --exit-code $EXIT_CODE
