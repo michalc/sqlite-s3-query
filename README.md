@@ -38,7 +38,7 @@ for row in query_my_db('SELECT * FROM my_table_2 ORDER BY my_column'):
     print(row)
 ```
 
-The AWS region and the credentials are taken from environment variables, but this can be changed using the `get_credentials` parameter. Below shows default implementation of this that can be overriden.
+The AWS region and the credentials are taken from environment variables, but this can be changed using the `get_credentials` parameter. Below shows the default implementation of this that can be overriden.
 
 ```python
 import os
