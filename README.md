@@ -31,10 +31,10 @@ query_my_db = partial(sqlite_s3_query,
     url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite',
 )
 
-for row in query_my_db('SELECT * FROM my_table WHERE my_col = ?', ('my-value',)):
+for row in query_my_db('SELECT * FROM my_table WHERE my_col = ?', params=('my-value',)):
     print(row)
 
-for row in query_my_db('SELECT * FROM my_table_2 WHERE my_col = ?', ('my-value',)):
+for row in query_my_db('SELECT * FROM my_table_2 WHERE my_col = ?', params=('my-value',)):
     print(row)
 ```
 
@@ -55,6 +55,6 @@ query_my_db = partial(sqlite_s3_query
     ),
 )
 
-for row in query_my_db('SELECT * FROM my_table_2 WHERE my_col = ?', ('my-value',)):
+for row in query_my_db('SELECT * FROM my_table_2 WHERE my_col = ?', params=('my-value',)):
     print(row)
 ```
