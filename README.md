@@ -1,9 +1,11 @@
 # sqlite-s3-query [![CircleCI](https://circleci.com/gh/michalc/sqlite-s3-query.svg?style=shield)](https://circleci.com/gh/michalc/sqlite-s3-query) [![Test Coverage](https://api.codeclimate.com/v1/badges/8e6c25c35521d6b338fa/test_coverage)](https://codeclimate.com/github/michalc/sqlite-s3-query/test_coverage)
 
 
-Python function to query a SQLite file stored on S3. It uses HTTP range requests to avoid downloading the entire file, and so is suitable for large databases.
+Python function to query a SQLite file stored on S3. It uses multiple HTTP range requests per query to avoid downloading the entire file, and so is suitable for large databases.
 
-Operations that write to the database are not supported. However, S3 object-versioning is used, and required, so each query should complete succesfully even if the database is replaced concurrently by another S3 client.
+All the HTTP requests for a query request the same version of the database object in S3, so queries should complete succesfully even if the database is replaced concurrently by another S3 client. Versioning _must_ be enabled on the S3 bucket.
+
+Operations that write to the database are not supported.
 
 
 ## Installation
