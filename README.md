@@ -5,6 +5,16 @@ Python function to query a SQLite file stored on S3. It uses HTTP range requests
 Operations that write to the database are not supported. However, S3 object-versioning is used, and required, so each query should complete succesfully even if the database is overwritten concurrently by another S3 client.
 
 
+## Installation
+
+sqlite-s3-query depends on [APSW](https://github.com/rogerbinns/apsw), which is not available on PyPI, and can be installed directly from GitHub.
+
+```bash
+pip install sqlite_s3_query
+pip install https://github.com/rogerbinns/apsw/releases/download/3.36.0-r1/apsw-3.36.0-r1.zip --global-option=fetch --global-option=--version --global-option=3.36.0 --global-option=--all --global-option=build --global-option=--enable-all-extensions
+```
+
+
 ## Usage
 
 ```python
