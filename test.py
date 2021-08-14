@@ -1,4 +1,5 @@
 from datetime import datetime
+import functools
 import hashlib
 import hmac
 import sqlite3
@@ -49,6 +50,30 @@ class TestSqliteS3Query(unittest.TestCase):
                 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
                 None,
         )))
+        self.assertEqual(rows, [('c',)])
+
+    def test_partial(self):
+        db = get_db([
+            "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+        ] + [
+            "INSERT INTO my_table VALUES ('a','b'),('c','d')",
+        ])
+
+        put_object('my-bucket', 'my.db', db)
+
+        query_my_db = functools.partial(sqlite_s3_query,
+            url='http://localhost:9000/my-bucket/my.db',
+            get_credentials=lambda: (
+                'us-east-1',
+                'AKIAIOSFODNN7EXAMPLE',
+                'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+                None,
+            )
+        )
+
+        rows = list(query_my_db(
+            "SELECT my_col_a FROM my_table WHERE my_col_b = ?", params=(('d',)),
+        ))
         self.assertEqual(rows, [('c',)])
 
 def put_object(bucket, key, content):
