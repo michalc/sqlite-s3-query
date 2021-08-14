@@ -30,6 +30,7 @@ for row in results_iter:
 If in your project you use multiple queries to the same file, `functools.partial` can be used to make an interface with less duplication.
 
 ```python
+import os
 from functools import partial
 from sqlite_s3_query import sqlite_s3_query
 
