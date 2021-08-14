@@ -2,7 +2,7 @@
 
 Python function to query a SQLite file stored on S3. It uses HTTP range requests to avoid downloading the entire file, and so is suitable for large databases.
 
-Operations that write to the database are not supported. However, S3 object-versioning is used, and required, so each query should complete succesfully even if the database is overwritten during the query.
+Operations that write to the database are not supported. However, S3 object-versioning is used, and required, so each query should complete succesfully even if the database is overwritten concurrently.
 
 > Work-in-progress. This README serves as a rough design spec.
 
