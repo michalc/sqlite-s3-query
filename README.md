@@ -11,7 +11,7 @@ Operations that write to the database are not supported. However, S3 object-vers
 from sqlite_s3_query import sqlite_s3_query
 
 results_iter = sqlite_s3_query(
-    'SELECT * FROM my_table WHERE my_column = ?', ('my-value',),
+    'SELECT * FROM my_table WHERE my_column = ?', params=('my-value',),
     url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite',
 )
 
