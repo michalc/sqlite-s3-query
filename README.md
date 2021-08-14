@@ -8,7 +8,7 @@ Operations that write to the database are not supported. However, S3 object-vers
 
 ## Installation
 
-sqlite-s3-query depends on [APSW](https://github.com/rogerbinns/apsw), which is not available on PyPI, and can be installed directly from GitHub.
+sqlite-s3-query depends on [APSW](https://github.com/rogerbinns/apsw), which is not available on PyPI, but can be installed directly from GitHub.
 
 ```bash
 pip install sqlite_s3_query
