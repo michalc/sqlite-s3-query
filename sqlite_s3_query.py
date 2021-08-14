@@ -1,3 +1,4 @@
+from collections import namedtuple
 from functools import partial
 from hashlib import sha256
 import hmac
@@ -135,7 +136,11 @@ def sqlite_s3_query(sql, url, params=(), get_credentials=lambda: (
             flags=apsw.SQLITE_OPEN_READONLY | apsw.SQLITE_OPEN_URI,
             vfs=vfs_name,
         ) as conn:
-            results = conn.cursor().execute(sql, params)
-            yield from results
+            cursor = conn.cursor()
+            cursor.execute(sql, params)
+            row_constructor = namedtuple('Row', tuple(name for name, type in cursor.getdescription()))
+
+            for row in cursor:
+                yield row_constructor(*row)
 
         del vfs
