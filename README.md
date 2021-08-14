@@ -1,4 +1,5 @@
-# sqlite-s3-query
+# sqlite-s3-query [![CircleCI](https://circleci.com/gh/michalc/sqlite-s3-query.svg?style=shield)](https://circleci.com/gh/michalc/sqlite-s3-query) [![Test Coverage](https://api.codeclimate.com/v1/badges/8e6c25c35521d6b338fa/test_coverage)](https://codeclimate.com/github/michalc/sqlite-s3-query/test_coverage)
+
 
 Python function to query a SQLite file stored on S3. It uses HTTP range requests to avoid downloading the entire file, and so is suitable for large databases.
 
