@@ -13,7 +13,7 @@ Operations that write to the database are not supported. However, S3 object-vers
 from sqlite_s3_query import sqlite_s3_query
 
 results_iter = sqlite_s3_query(
-    'SELECT * FROM my_table ORDER BY my_column',
+    'SELECT * FROM my_table WHERE my_column = ?', ('my-value',),
     url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite',
 )
 
@@ -31,10 +31,10 @@ query_my_db = partial(sqlite_s3_query,
     url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite',
 )
 
-for row in query_my_db('SELECT * FROM my_table_1 ORDER BY my_column'):
+for row in query_my_db('SELECT * FROM my_table WHERE my_col = ?', ('my-value',)):
     print(row)
 
-for row in query_my_db('SELECT * FROM my_table_2 ORDER BY my_column'):
+for row in query_my_db('SELECT * FROM my_table_2 WHERE my_col = ?', ('my-value',)):
     print(row)
 ```
 
@@ -55,6 +55,6 @@ query_my_db = partial(sqlite_s3_query
     ),
 )
 
-for row in query_my_db('SELECT * FROM my_table ORDER BY my_column'):
+for row in query_my_db('SELECT * FROM my_table_2 WHERE my_col = ?', ('my-value',)):
     print(row)
 ```
