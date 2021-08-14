@@ -1,6 +1,8 @@
 # sqlite-s3-query
 
-Python function to query a SQLite file stored on S3. It uses HTTP range requests to avoid downloading the entire database, and so is suitable for large databases. Operations that write to the database are not supported.
+Python function to query a SQLite file stored on S3. It uses HTTP range requests to avoid downloading the entire database, and so is suitable for large databases.
+
+Operations that write to the database are not supported. However, S3 object-versioning is used, and required, so each query should complete succesfully even if the database is overwritten during the query.
 
 > Work-in-progress. This README serves as a rough design spec.
 
@@ -50,4 +52,3 @@ for row in query_my_db('SELECT * FROM my_table_1 ORDER BY my_column'):
 for row in query_my_db('SELECT * FROM my_table_2 ORDER BY my_column'):
     print(row)
 ```
-
