@@ -20,7 +20,10 @@ setuptools.setup(
         'License :: OSI Approved :: MIT License',
         'Topic :: Database',
     ],
-    python_requires='>=3.5.0',
+    python_requires='>=3.6.0',
+    install_requires=[
+        'httpx>=0.18.2',
+    ],
     py_modules=[
         'sqlite_s3_query',
     ],
