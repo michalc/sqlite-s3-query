@@ -8,7 +8,7 @@ def long_description():
 
 setuptools.setup(
     name='sqlite-s3-query',
-    version='0.0.4',
+    version='0.0.5',
     author='Michal Charemza',
     author_email='michal@charemza.name',
     description='Python function to query a SQLite file stored on S3',
