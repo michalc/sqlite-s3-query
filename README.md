@@ -7,7 +7,7 @@ All the HTTP requests for a query request the same version of the database objec
 
 Operations that write to the database are not supported.
 
-Inspired by [phiresky's sql.js](https://github.com/phiresky/sql.js-httpvfs), and [dacort's Stack Overflow answer](https://stackoverflow.com/a/59434097/1319998).
+Inspired by [phiresky's sql.js-httpvfs](https://github.com/phiresky/sql.js-httpvfs), and [dacort's Stack Overflow answer](https://stackoverflow.com/a/59434097/1319998).
 
 
 ## Installation
