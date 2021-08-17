@@ -71,3 +71,19 @@ query_my_db = partial(sqlite_s3_query
 for row in query_my_db('SELECT * FROM my_table_2 WHERE my_col = ?', params=('my-value',)):
     print(row)
 ```
+
+The HTTP client can be changed by overriding the the default `get_http_client` parameter, which is shown below.
+
+```python
+from functools import partial
+import httpx
+from sqlite_s3_query import sqlite_s3_query
+
+query_my_db = partial(sqlite_s3_query,
+    url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite',
+    get_http_client=lambda: httpx.Client(),
+)
+
+for row in query_my_db('SELECT * FROM my_table WHERE my_col = ?', params=('my-value',)):
+    print(row)
+```
