@@ -16,7 +16,7 @@ def sqlite_s3_query(sql, url, params=(), get_credentials=lambda: (
     os.environ['AWS_ACCESS_KEY_ID'],
     os.environ['AWS_SECRET_ACCESS_KEY'],
     os.environ.get('AWS_SESSION_TOKEN'),  # Only needed for temporary credentials
-)):
+), get_http_client=lambda: httpx.Client()):
     vfs_name = 's3-' + str(uuid4())
     file_name = 's3-' + str(uuid4())
     body_hash = sha256(b'').hexdigest()
@@ -121,7 +121,7 @@ def sqlite_s3_query(sql, url, params=(), get_credentials=lambda: (
             (b'x-amz-content-sha256', body_hash.encode('ascii')),
         ) + to_auth_headers
 
-    with httpx.Client() as http_client:
+    with get_http_client() as http_client:
         head_headers = make_auth_request(http_client, 'HEAD', (), ()).headers
         version_id = head_headers['x-amz-version-id']
         size = int(head_headers['content-length'])
