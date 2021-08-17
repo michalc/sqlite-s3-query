@@ -143,4 +143,4 @@ def sqlite_s3_query(sql, url, params=(), get_credentials=lambda: (
             for row in cursor:
                 yield row_constructor(*row)
 
-        del vfs
+        vfs.unregister()
