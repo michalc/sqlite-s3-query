@@ -93,6 +93,23 @@ class TestSqliteS3Query(unittest.TestCase):
 
         self.assertEqual(rows, [(now.strftime('%Y-%m-%d'), now.strftime('%H:%M:%S'))])
 
+    def test_non_python_identifier(self):
+        db = get_db(["CREATE TABLE my_table (my_col_a text, my_col_b text);"])
+
+        put_object('my-bucket', 'my.db', db)
+
+        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda: (
+            'us-east-1',
+            'AKIAIOSFODNN7EXAMPLE',
+            'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            None,
+        )) as query:
+            now = datetime.utcnow()
+            rows = list(query("SELECT date('now')"))
+
+        print(rows)
+        self.assertEqual(rows[0].date_now, now.strftime('%Y-%m-%d'))
+
     def test_non_existant_table(self):
         db = get_db(["CREATE TABLE my_table (my_col_a text, my_col_b text);"])
 

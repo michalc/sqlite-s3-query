@@ -6,6 +6,7 @@ from hashlib import sha256
 import hmac
 from datetime import datetime
 import os
+from re import sub
 from sys import platform
 from time import time
 from urllib.parse import urlencode, urlsplit, quote
@@ -272,7 +273,7 @@ def sqlite_s3_query(url, get_credentials=lambda: (
                 run_with_db(db, bind[type(param)], pp_stmt, i + 1, param)
 
             row_constructor = namedtuple('Row', (
-                libsqlite3.sqlite3_column_name(pp_stmt, i).decode()
+                sub('_+', '_', sub(r'\W|^(?=\d)','_', libsqlite3.sqlite3_column_name(pp_stmt, i).decode()).strip('_'))
                 for i in range(0, libsqlite3.sqlite3_column_count(pp_stmt))
             ))
 
