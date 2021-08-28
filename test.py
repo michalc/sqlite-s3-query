@@ -107,7 +107,6 @@ class TestSqliteS3Query(unittest.TestCase):
             now = datetime.utcnow()
             rows = list(query("SELECT date('now')"))
 
-        print(rows)
         self.assertEqual(rows[0].date_now, now.strftime('%Y-%m-%d'))
 
     def test_non_existant_table(self):
