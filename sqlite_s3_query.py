@@ -148,10 +148,9 @@ def sqlite_s3_query(url, get_credentials=lambda: (
 
     with \
             get_http_client() as http_client, \
-            get_vfs(http_client) as vfs:
+            get_vfs(http_client) as vfs, \
+            apsw.Connection(f'file:/{file_name}?immutable=1',
+                flags=apsw.SQLITE_OPEN_READONLY | apsw.SQLITE_OPEN_URI, vfs=vfs_name,
+            ) as conn:
 
-        with apsw.Connection(f'file:/{file_name}?immutable=1',
-            flags=apsw.SQLITE_OPEN_READONLY | apsw.SQLITE_OPEN_URI,
-            vfs=vfs_name,
-        ) as conn:
-            yield partial(query, conn.cursor())
+        yield partial(query, conn.cursor())
