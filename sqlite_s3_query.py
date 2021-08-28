@@ -36,7 +36,7 @@ def sqlite_s3_query(url, get_credentials=lambda: (
     SQLITE_ROW = 100
     SQLITE_DONE = 101
     SQLITE_TRANSIENT = -1
-    SQLITE_OPEN_READWRITE = 0x00000002
+    SQLITE_OPEN_READONLY = 0x00000001
     SQLITE_OPEN_URI = 0x00000040
 
     bind = {
@@ -251,7 +251,7 @@ def sqlite_s3_query(url, get_credentials=lambda: (
     @contextmanager
     def get_db(vfs):
         db = c_void_p()
-        run(libsqlite3.sqlite3_open_v2, f'file:/{file_name}?immutable=1'.encode() + b'\0', byref(db), SQLITE_OPEN_READWRITE | SQLITE_OPEN_URI, vfs_name.encode())
+        run(libsqlite3.sqlite3_open_v2, f'file:/{file_name}?immutable=1'.encode() + b'\0', byref(db), SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, vfs_name.encode())
         try:
             yield db
         finally:
