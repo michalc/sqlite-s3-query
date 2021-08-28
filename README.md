@@ -90,8 +90,9 @@ with query_my_db() as query:
 The location of the libsqlite3 library can be changed by overriding the `get_libsqlite3` parameter.
 
 ```python
+from ctypes import cdll
 from functools import partial
-from sys import playform
+from sys import platform
 import httpx
 from sqlite_s3_query import sqlite_s3_query
 
