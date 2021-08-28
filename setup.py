@@ -11,7 +11,7 @@ setuptools.setup(
     version='0.0.6',
     author='Michal Charemza',
     author_email='michal@charemza.name',
-    description='Python function to query a SQLite file stored on S3',
+    description='Python context manager to query a SQLite file stored on S3',
     long_description=long_description(),
     long_description_content_type='text/markdown',
     url='https://github.com/michalc/sqlite-s3-query',
