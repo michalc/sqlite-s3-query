@@ -222,7 +222,7 @@ def sqlite_s3_query(url, get_credentials=lambda: (
             ('sz_os_file', c_int, sizeof(file)),
             ('mx_pathname', c_int, 1024),
             ('p_next', c_void_p, None),
-            ('z_name', c_char_p, vfs_name.encode()),
+            ('z_name', c_char_p, vfs_name.encode() + b'\0'),
             ('p_app_data', c_char_p, None),
             ('x_open', x_open_type, x_open_type(x_open)),
             ('x_delete', c_void_p, None),
@@ -247,7 +247,7 @@ def sqlite_s3_query(url, get_credentials=lambda: (
     @contextmanager
     def get_db(vfs):
         db = c_void_p()
-        run(libsqlite3.sqlite3_open_v2, f'file:/{file_name}?immutable=1'.encode() + b'\0', byref(db), SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, vfs_name.encode())
+        run(libsqlite3.sqlite3_open_v2, f'file:/{file_name}?immutable=1'.encode() + b'\0', byref(db), SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, vfs_name.encode() + b'\0')
         try:
             yield db
         finally:
@@ -256,7 +256,7 @@ def sqlite_s3_query(url, get_credentials=lambda: (
     @contextmanager
     def get_pp_stmt(db, sql):
         pp_stmt = c_void_p()
-        run_with_db(db, libsqlite3.sqlite3_prepare_v3, db, sql.encode(), -1, 0, byref(pp_stmt), None)
+        run_with_db(db, libsqlite3.sqlite3_prepare_v3, db, sql.encode() + b'\0', -1, 0, byref(pp_stmt), None)
         try:
             yield pp_stmt
         finally:
