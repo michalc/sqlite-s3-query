@@ -12,11 +12,8 @@ Inspired by [phiresky's sql.js-httpvfs](https://github.com/phiresky/sql.js-httpv
 
 ## Installation
 
-sqlite-s3-query depends on [APSW](https://github.com/rogerbinns/apsw), which is not available on PyPI, but can be installed directly from GitHub.
-
 ```bash
 pip install sqlite_s3_query
-pip install https://github.com/rogerbinns/apsw/releases/download/3.36.0-r1/apsw-3.36.0-r1.zip --global-option=fetch --global-option=--version --global-option=3.36.0 --global-option=--all --global-option=build --global-option=--enable-all-extensions
 ```
 
 
