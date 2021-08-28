@@ -77,6 +77,37 @@ class TestSqliteS3Query(unittest.TestCase):
 
         self.assertEqual(rows, [('c',)])
 
+    def test_time(self):
+        db = get_db(["CREATE TABLE my_table (my_col_a text, my_col_b text);"])
+
+        put_object('my-bucket', 'my.db', db)
+
+        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda: (
+            'us-east-1',
+            'AKIAIOSFODNN7EXAMPLE',
+            'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            None,
+        )) as query:
+            now = datetime.utcnow()
+            rows = list(query("SELECT date('now') AS d, time('now') AS t"))
+
+        self.assertEqual(rows, [(now.strftime('%Y-%m-%d'), now.strftime('%H:%M:%S'))])
+
+    def test_non_existant_table(self):
+        db = get_db(["CREATE TABLE my_table (my_col_a text, my_col_b text);"])
+
+        put_object('my-bucket', 'my.db', db)
+
+        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda: (
+            'us-east-1',
+            'AKIAIOSFODNN7EXAMPLE',
+            'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            None,
+        )) as query:
+
+            with self.assertRaises(Exception):
+                list(query("SELECT * FROM non_table"))
+
 def put_object(bucket, key, content):
     create_bucket(bucket)
     enable_versioning(bucket)

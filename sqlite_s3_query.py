@@ -1,14 +1,16 @@
 from contextlib import contextmanager
 from collections import namedtuple
+from ctypes import CFUNCTYPE, POINTER, Structure, pointer, cast, memmove, memset, sizeof, addressof, cdll, byref, string_at, c_char_p, c_int, c_double, c_int64, c_void_p, c_char
 from functools import partial
 from hashlib import sha256
 import hmac
 from datetime import datetime
 import os
+from sys import platform
+from time import time
 from urllib.parse import urlencode, urlsplit, quote
 from uuid import uuid4
 
-import apsw
 import httpx
 
 
@@ -18,40 +20,59 @@ def sqlite_s3_query(url, get_credentials=lambda: (
     os.environ['AWS_ACCESS_KEY_ID'],
     os.environ['AWS_SECRET_ACCESS_KEY'],
     os.environ.get('AWS_SESSION_TOKEN'),  # Only needed for temporary credentials
-), get_http_client=lambda: httpx.Client()):
+), get_http_client=lambda: httpx.Client(),
+   get_libsqlite3=lambda: cdll.LoadLibrary({'linux': 'libsqlite3.so', 'darwin': 'libsqlite3.dylib'}[platform])):
+    libsqlite3 = get_libsqlite3()
+    libsqlite3.sqlite3_errstr.restype = c_char_p
+    libsqlite3.sqlite3_errmsg.restype = c_char_p
+    libsqlite3.sqlite3_column_name.restype = c_char_p
+    libsqlite3.sqlite3_column_double.restype = c_double
+    libsqlite3.sqlite3_column_int64.restype = c_int64
+    libsqlite3.sqlite3_column_blob.restype = c_void_p
+    libsqlite3.sqlite3_column_bytes.restype = c_int64
+    SQLITE_OK = 0
+    SQLITE_NOTFOUND = 12
+    SQLITE_ROW = 100
+    SQLITE_DONE = 101
+    SQLITE_TRANSIENT = -1
+    SQLITE_OPEN_READWRITE = 0x00000002
+    SQLITE_OPEN_URI = 0x00000040
+
+    bind = {
+        type(0): libsqlite3.sqlite3_bind_int64,
+        type(0.0): libsqlite3.sqlite3_bind_double,
+        type(''): lambda pp_stmt, i, value: libsqlite3.sqlite3_bind_text(pp_stmt, i, value.encode('utf-8'), len(value.encode('utf-8')), SQLITE_TRANSIENT),
+        type(b''): lambda pp_stmt, i, value: libsqlite3.sqlite3_bind_blob(pp_stmt, i, value, len(value), SQLITE_TRANSIENT),
+        type(None): lambda pp_stmt, i, _: libsqlite3.sqlite3_bind_null(pp_stmt, i),
+    }
+
+    extract = {
+        1: libsqlite3.sqlite3_column_int64,
+        2: libsqlite3.sqlite3_column_double,
+        3: lambda pp_stmt, i: string_at(
+            libsqlite3.sqlite3_column_blob(pp_stmt, i),
+            libsqlite3.sqlite3_column_bytes(pp_stmt, i),
+        ).decode(),
+        4: lambda pp_stmt, i: string_at(
+            libsqlite3.sqlite3_column_blob(pp_stmt, i),
+            libsqlite3.sqlite3_column_bytes(pp_stmt, i),
+        ),
+        5: lambda pp_stmt, i: None,
+    }
+
     vfs_name = 's3-' + str(uuid4())
     file_name = 's3-' + str(uuid4())
     body_hash = sha256(b'').hexdigest()
     scheme, netloc, path, _, _ = urlsplit(url)
 
-    class S3VFS(apsw.VFS):
-        def __init__(self, size, get_range):
-            self.size = size
-            self.get_range = get_range
-            super().__init__(vfs_name)
+    def run(func, *args):
+        res = func(*args)
+        if res != 0:
+            raise Exception(libsqlite3.sqlite3_errstr(res).decode())
 
-        def xOpen(self, _, __):
-            return S3VFSFile(self.size, self.get_range)
-
-        def xFullPathname(self, p):
-            return p
-
-    class S3VFSFile():
-        def __init__(self, size, get_range):
-            self.size = size
-            self.get_range = get_range
-
-        def xRead(self, amount, offset):
-            return self.get_range(offset, offset + amount - 1)
-
-        def xFileSize(self):
-            return self.size
-
-        def xClose(self):
-            pass
-
-        def xFileControl(self, _, __):
-            return False
+    def run_with_db(db, func, *args):
+        if func(*args) != 0:
+            raise Exception(libsqlite3.sqlite3_errmsg(db).decode())
 
     def make_auth_request(http_client, method, params, headers):
         region, access_key_id, secret_access_key, session_token = get_credentials()
@@ -134,23 +155,142 @@ def sqlite_s3_query(url, get_credentials=lambda: (
                 (('range', f'bytes={bytes_from}-{bytes_to}'),)
             ).content
 
-        vfs = S3VFS(size, get_range)
+        def make_struct(fields):
+            class Struct(Structure):
+                _fields_ = [(field_name, field_type) for (field_name, field_type, _) in fields]
+            return Struct(*tuple(value for (_, _, value) in fields))
+
+        x_open_type = CFUNCTYPE(c_int, c_void_p, c_char_p, c_void_p, c_int, POINTER(c_int))
+        def x_open(p_vfs, z_name, p_file, flags, p_out_flags):
+            memmove(p_file, addressof(file), sizeof(file))
+            p_out_flags[0] = flags
+            return SQLITE_OK
+
+        x_close_type = CFUNCTYPE(c_int, c_void_p)
+        def x_close(p_file):
+            return SQLITE_OK
+
+        x_read_type = CFUNCTYPE(c_int, c_void_p, c_void_p, c_int, c_int64)
+        def x_read(p_file, p_out, i_amt, i_ofst):
+            memmove(p_out, get_range(i_ofst, i_ofst + i_amt - 1), i_amt)
+            return SQLITE_OK
+
+        x_file_size_type = CFUNCTYPE(c_int, c_void_p, POINTER(c_int))
+        def x_file_size(p_file, p_size):
+            p_size[0] = size
+            return SQLITE_OK
+
+        x_file_control_type = CFUNCTYPE(c_int, c_void_p, c_int, c_void_p)
+        def x_file_control(p_file, op, p_arg):
+            return SQLITE_NOTFOUND
+
+        x_sector_size_type = CFUNCTYPE(c_int, c_void_p)
+        def x_sector_size(p_file):
+            return 0
+
+        x_device_characteristics_type = CFUNCTYPE(c_int, c_void_p)
+        def x_device_characteristics(p_file):
+            return 0
+
+        x_full_pathname_type = CFUNCTYPE(c_int, c_void_p, c_char_p, c_int, POINTER(c_char))
+        def x_full_pathname(p_vfs, z_name, n_out, z_out):
+            memmove(z_out, file_name.encode() + b'\0', len(file_name) + 1)
+            return SQLITE_OK
+
+        x_current_time_type = CFUNCTYPE(c_int, c_void_p, POINTER(c_double))
+        def x_current_time(p_vfs, c_double_p):
+            c_double_p[0] = time()/86400.0 + 2440587.5;
+            return SQLITE_OK
+
+        io_methods = make_struct(tuple((
+            ('i_version', c_int, 1),
+            ('x_close', x_close_type, x_close_type(x_close)),
+            ('x_read', x_read_type, x_read_type(x_read)),
+            ('x_write', c_void_p, None),
+            ('x_truncate', c_void_p, None),
+            ('x_sync', c_void_p, None),
+            ('x_file_size', x_file_size_type, x_file_size_type(x_file_size)),
+            ('x_lock', c_void_p, None),
+            ('x_unlock', c_void_p, None),
+            ('x_check_reserved_lock', c_void_p, None),
+            ('x_file_control', x_file_control_type, x_file_control_type(x_file_control)),
+            ('x_sector_size', x_sector_size_type, x_sector_size_type(x_sector_size)),
+            ('x_device_characteristics', x_device_characteristics_type, x_device_characteristics_type(x_device_characteristics)),
+        )))
+        file = make_struct(tuple((
+            ('p_methods', POINTER(type(io_methods)), pointer(io_methods)),
+        )))
+        vfs = make_struct(tuple((
+            ('i_version', c_int, 1),
+            ('sz_os_file', c_int, sizeof(file)),
+            ('mx_pathname', c_int, 1024),
+            ('p_next', c_void_p, None),
+            ('z_name', c_char_p, vfs_name.encode()),
+            ('p_app_data', c_char_p, None),
+            ('x_open', x_open_type, x_open_type(x_open)),
+            ('x_delete', c_void_p, None),
+            ('x_access', c_void_p, None),
+            ('x_full_pathname', x_full_pathname_type, x_full_pathname_type(x_full_pathname)),
+            ('x_dl_open', c_void_p, None),
+            ('x_dl_error', c_void_p, None),
+            ('x_dl_sym', c_void_p, None),
+            ('x_dl_close', c_void_p, None),
+            ('x_randomness', c_void_p, None),
+            ('x_sleep', c_void_p, None),
+            ('x_current_time', x_current_time_type, x_current_time_type(x_current_time)),
+            ('x_get_last_error', c_void_p, None),
+        )))
+
+        run(libsqlite3.sqlite3_vfs_register, byref(vfs), 0)
         try:
             yield vfs
         finally:
-            vfs.unregister()
+            run(libsqlite3.sqlite3_vfs_unregister, byref(vfs))
 
-    def query(cursor, sql, params=()):
-        cursor.execute(sql, params)
-        row_constructor = namedtuple('Row', tuple(name for name, type in cursor.getdescription()))
-        for row in cursor:
-            yield row_constructor(*row)
+    @contextmanager
+    def get_db(vfs):
+        db = c_void_p()
+        run(libsqlite3.sqlite3_open_v2, f'file:/{file_name}?immutable=1'.encode() + b'\0', byref(db), SQLITE_OPEN_READWRITE | SQLITE_OPEN_URI, vfs_name.encode())
+        try:
+            yield db
+        finally:
+            run_with_db(db, libsqlite3.sqlite3_close, db)
+
+    @contextmanager
+    def get_pp_stmt(db, sql):
+        pp_stmt = c_void_p()
+        run_with_db(db, libsqlite3.sqlite3_prepare_v3, db, sql.encode(), -1, 0, byref(pp_stmt), None)
+        try:
+            yield pp_stmt
+        finally:
+            run_with_db(db, libsqlite3.sqlite3_finalize, pp_stmt)
+
+    def query(db, sql, params=()):
+        with get_pp_stmt(db, sql) as pp_stmt:
+
+            for i, param in enumerate(params):
+                run_with_db(db, bind[type(param)], pp_stmt, i + 1, param)
+
+            row_constructor = namedtuple('Row', (
+                libsqlite3.sqlite3_column_name(pp_stmt, i).decode()
+                for i in range(0, libsqlite3.sqlite3_column_count(pp_stmt))
+            ))
+
+            while True:
+                res = libsqlite3.sqlite3_step(pp_stmt)
+                if res == SQLITE_DONE:
+                    break
+                if res != SQLITE_ROW:
+                    raise Exception(libsqlite3.sqlite3_errstr(res).decode())
+
+                yield row_constructor(*(
+                    extract[libsqlite3.sqlite3_column_type(pp_stmt, i)](pp_stmt, i)
+                    for i in range(0, len(row_constructor._fields))
+                ))
 
     with \
             get_http_client() as http_client, \
             get_vfs(http_client) as vfs, \
-            apsw.Connection(f'file:/{file_name}?immutable=1',
-                flags=apsw.SQLITE_OPEN_READONLY | apsw.SQLITE_OPEN_URI, vfs=vfs_name,
-            ) as conn:
+            get_db(vfs) as db:
 
-        yield partial(query, conn.cursor())
+        yield partial(query, db)
