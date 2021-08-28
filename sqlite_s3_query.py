@@ -29,7 +29,7 @@ def sqlite_s3_query(sql, url, params=(), get_credentials=lambda: (
             super().__init__(vfs_name)
 
         def xOpen(self, _, __):
-            return S3VFSFile(size, get_range)
+            return S3VFSFile(self.size, self.get_range)
 
         def xFullPathname(self, p):
             return p
@@ -40,7 +40,7 @@ def sqlite_s3_query(sql, url, params=(), get_credentials=lambda: (
             self.get_range = get_range
 
         def xRead(self, amount, offset):
-            return get_range(offset, offset + amount - 1)
+            return self.get_range(offset, offset + amount - 1)
 
         def xFileSize(self):
             return self.size
