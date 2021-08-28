@@ -185,10 +185,6 @@ def sqlite_s3_query(url, get_credentials=lambda: (
         def x_file_control(p_file, op, p_arg):
             return SQLITE_NOTFOUND
 
-        x_sector_size_type = CFUNCTYPE(c_int, c_void_p)
-        def x_sector_size(p_file):
-            return 0
-
         x_device_characteristics_type = CFUNCTYPE(c_int, c_void_p)
         def x_device_characteristics(p_file):
             return 0
@@ -215,7 +211,7 @@ def sqlite_s3_query(url, get_credentials=lambda: (
             ('x_unlock', c_void_p, None),
             ('x_check_reserved_lock', c_void_p, None),
             ('x_file_control', x_file_control_type, x_file_control_type(x_file_control)),
-            ('x_sector_size', x_sector_size_type, x_sector_size_type(x_sector_size)),
+            ('x_sector_size', c_void_p, None),
             ('x_device_characteristics', x_device_characteristics_type, x_device_characteristics_type(x_device_characteristics)),
         )))
         file = make_struct(tuple((
