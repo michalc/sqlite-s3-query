@@ -16,6 +16,8 @@ Inspired by [phiresky's sql.js-httpvfs](https://github.com/phiresky/sql.js-httpv
 pip install sqlite_s3_query
 ```
 
+The libsqlite3 binary library is also required, but this is typically already installed on most systems.
+
 
 ## Usage
 
@@ -78,6 +80,24 @@ from sqlite_s3_query import sqlite_s3_query
 query_my_db = partial(sqlite_s3_query,
     url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite',
     get_http_client=lambda: httpx.Client(),
+)
+
+with query_my_db() as query:
+    for row in query_my_db('SELECT * FROM my_table WHERE my_col = ?', params=('my-value',)):
+        print(row)
+```
+
+The location of the libsqlite3 can be changed by overriding the `get_libsqlite3` parameter.
+
+```python
+from functools import partial
+from sys import playform
+import httpx
+from sqlite_s3_query import sqlite_s3_query
+
+query_my_db = partial(sqlite_s3_query,
+    url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite',
+    get_libsqlite3=lambda: cdll.LoadLibrary({'linux': 'libsqlite3.so', 'darwin': 'libsqlite3.dylib'}[platform])
 )
 
 with query_my_db() as query:
