@@ -87,7 +87,7 @@ with query_my_db() as query:
         print(row)
 ```
 
-The location of the libsqlite3 can be changed by overriding the `get_libsqlite3` parameter.
+The location of the libsqlite3 library can be changed by overriding the `get_libsqlite3` parameter.
 
 ```python
 from functools import partial
