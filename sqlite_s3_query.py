@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from collections import namedtuple
 from functools import partial
 from hashlib import sha256
@@ -11,7 +12,8 @@ import apsw
 import httpx
 
 
-def sqlite_s3_query(sql, url, params=(), get_credentials=lambda: (
+@contextmanager
+def sqlite_s3_query(url, get_credentials=lambda: (
     os.environ['AWS_DEFAULT_REGION'],
     os.environ['AWS_ACCESS_KEY_ID'],
     os.environ['AWS_SECRET_ACCESS_KEY'],
@@ -121,7 +123,8 @@ def sqlite_s3_query(sql, url, params=(), get_credentials=lambda: (
             (b'x-amz-content-sha256', body_hash.encode('ascii')),
         ) + to_auth_headers
 
-    with get_http_client() as http_client:
+    @contextmanager
+    def get_vfs(http_client):
         head_headers = make_auth_request(http_client, 'HEAD', (), ()).headers
         version_id = head_headers['x-amz-version-id']
         size = int(head_headers['content-length'])
@@ -130,17 +133,25 @@ def sqlite_s3_query(sql, url, params=(), get_credentials=lambda: (
                 (('versionId', version_id),),
                 (('range', f'bytes={bytes_from}-{bytes_to}'),)
             ).content
+
         vfs = S3VFS(size, get_range)
+        try:
+            yield vfs
+        finally:
+            vfs.unregister()
+
+    def query(cursor, sql, params=()):
+        cursor.execute(sql, params)
+        row_constructor = namedtuple('Row', tuple(name for name, type in cursor.getdescription()))
+        for row in cursor:
+            yield row_constructor(*row)
+
+    with \
+            get_http_client() as http_client, \
+            get_vfs(http_client) as vfs:
 
         with apsw.Connection(f'file:/{file_name}?immutable=1',
             flags=apsw.SQLITE_OPEN_READONLY | apsw.SQLITE_OPEN_URI,
             vfs=vfs_name,
         ) as conn:
-            cursor = conn.cursor()
-            cursor.execute(sql, params)
-            row_constructor = namedtuple('Row', tuple(name for name, type in cursor.getdescription()))
-
-            for row in cursor:
-                yield row_constructor(*row)
-
-        vfs.unregister()
+            yield partial(query, conn.cursor())

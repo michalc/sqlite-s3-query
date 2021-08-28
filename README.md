@@ -1,11 +1,11 @@
 # sqlite-s3-query [![CircleCI](https://circleci.com/gh/michalc/sqlite-s3-query.svg?style=shield)](https://circleci.com/gh/michalc/sqlite-s3-query) [![Test Coverage](https://api.codeclimate.com/v1/badges/8e6c25c35521d6b338fa/test_coverage)](https://codeclimate.com/github/michalc/sqlite-s3-query/test_coverage)
 
 
-Python function to query a SQLite file stored on S3. It uses multiple HTTP range requests per query to avoid downloading the entire file, and so is suitable for large databases.
+Python context manager to query a SQLite file stored on S3. It uses multiple HTTP range requests per query to avoid downloading the entire file, and so is suitable for large databases.
 
-All the HTTP requests for a query request the same version of the database object in S3, so queries should complete succesfully even if the database is replaced concurrently by another S3 client. Versioning _must_ be enabled on the S3 bucket.
+All queries using the same instance of the context will query the same version of the database object in S3. This means that a context is roughly equivalent to a REPEATABLE READ transaction, and queries should complete succesfully even if the database is replaced concurrently by another S3 client. Versioning _must_ be enabled on the S3 bucket.
 
-Operations that write to the database are not supported.
+SQL statements that write to the database are not supported.
 
 Inspired by [phiresky's sql.js-httpvfs](https://github.com/phiresky/sql.js-httpvfs), and [dacort's Stack Overflow answer](https://stackoverflow.com/a/59434097/1319998).
 
@@ -25,16 +25,12 @@ pip install https://github.com/rogerbinns/apsw/releases/download/3.36.0-r1/apsw-
 ```python
 from sqlite_s3_query import sqlite_s3_query
 
-results_iter = sqlite_s3_query(
-    'SELECT * FROM my_table WHERE my_column = ?', params=('my-value',),
-    url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite',
-)
-
-for row in results_iter:
-    print(row)
+with sqlite_s3_query(url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite') as query:
+    for row in query('SELECT * FROM my_table WHERE my_column = ?', params=('my-value',)):
+        print(row)
 ```
 
-If in your project you use multiple queries to the same file, `functools.partial` can be used to make an interface with less duplication.
+If in your project you query the same object from multiple places, `functools.partial` can be used to make an interface with less duplication.
 
 ```python
 from functools import partial
@@ -44,11 +40,13 @@ query_my_db = partial(sqlite_s3_query,
     url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite',
 )
 
-for row in query_my_db('SELECT * FROM my_table WHERE my_col = ?', params=('my-value',)):
-    print(row)
+with query_my_db() as query:
+    for row in query('SELECT * FROM my_table WHERE my_col = ?', params=('my-value',)):
+        print(row)
 
-for row in query_my_db('SELECT * FROM my_table_2 WHERE my_col = ?', params=('my-value',)):
-    print(row)
+with query_my_db() as query:
+    for row in query('SELECT * FROM my_table_2 WHERE my_col = ?', params=('my-value',)):
+        print(row)
 ```
 
 The AWS region and the credentials are taken from environment variables, but this can be changed using the `get_credentials` parameter. Below shows the default implementation of this that can be overriden.
@@ -68,8 +66,9 @@ query_my_db = partial(sqlite_s3_query
     ),
 )
 
-for row in query_my_db('SELECT * FROM my_table_2 WHERE my_col = ?', params=('my-value',)):
-    print(row)
+with query_my_db() as query:
+    for row in query_my_db('SELECT * FROM my_table_2 WHERE my_col = ?', params=('my-value',)):
+        print(row)
 ```
 
 The HTTP client can be changed by overriding the the default `get_http_client` parameter, which is shown below.
@@ -84,6 +83,7 @@ query_my_db = partial(sqlite_s3_query,
     get_http_client=lambda: httpx.Client(),
 )
 
-for row in query_my_db('SELECT * FROM my_table WHERE my_col = ?', params=('my-value',)):
-    print(row)
+with query_my_db() as query:
+    for row in query_my_db('SELECT * FROM my_table WHERE my_col = ?', params=('my-value',)):
+        print(row)
 ```

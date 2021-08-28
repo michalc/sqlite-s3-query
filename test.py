@@ -24,13 +24,14 @@ class TestSqliteS3Query(unittest.TestCase):
 
         put_object('my-bucket', 'my.db', db)
 
-        rows = list(sqlite_s3_query('SELECT my_col_a FROM my_table',
-            'http://localhost:9000/my-bucket/my.db', params=(), get_credentials=lambda: (
-                'us-east-1',
-                'AKIAIOSFODNN7EXAMPLE',
-                'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-                None,
-        )))
+        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda: (
+            'us-east-1',
+            'AKIAIOSFODNN7EXAMPLE',
+            'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            None,
+        )) as query:
+            rows = list(query('SELECT my_col_a FROM my_table'))
+
         self.assertEqual(rows, [('some-text-a',)] * 500)
 
     def test_placeholder(self):
@@ -42,14 +43,14 @@ class TestSqliteS3Query(unittest.TestCase):
 
         put_object('my-bucket', 'my.db', db)
 
-        rows = list(sqlite_s3_query(
-            "SELECT my_col_a FROM my_table WHERE my_col_b = ?", params=(('d',)),
-            url='http://localhost:9000/my-bucket/my.db', get_credentials=lambda: (
-                'us-east-1',
-                'AKIAIOSFODNN7EXAMPLE',
-                'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-                None,
-        )))
+        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda: (
+            'us-east-1',
+            'AKIAIOSFODNN7EXAMPLE',
+            'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            None,
+        )) as query:
+            rows = list(query("SELECT my_col_a FROM my_table WHERE my_col_b = ?", params=(('d',))))
+
         self.assertEqual(rows, [('c',)])
 
     def test_partial(self):
@@ -71,9 +72,9 @@ class TestSqliteS3Query(unittest.TestCase):
             )
         )
 
-        rows = list(query_my_db(
-            "SELECT my_col_a FROM my_table WHERE my_col_b = ?", params=(('d',)),
-        ))
+        with query_my_db() as query:
+            rows = list(query("SELECT my_col_a FROM my_table WHERE my_col_b = ?", params=(('d',))))
+
         self.assertEqual(rows, [('c',)])
 
 def put_object(bucket, key, content):
