@@ -17,7 +17,7 @@ import httpx
 
 @contextmanager
 def sqlite_s3_query(url, get_credentials=lambda: (
-    os.environ['AWS_DEFAULT_REGION'],
+    os.environ['AWS_REGION'],
     os.environ['AWS_ACCESS_KEY_ID'],
     os.environ['AWS_SECRET_ACCESS_KEY'],
     os.environ.get('AWS_SESSION_TOKEN'),  # Only needed for temporary credentials
