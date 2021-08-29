@@ -1,5 +1,4 @@
 from contextlib import contextmanager
-from collections import namedtuple
 from ctypes import CFUNCTYPE, POINTER, Structure, pointer, cast, memmove, memset, sizeof, addressof, cdll, byref, string_at, c_char_p, c_int, c_double, c_int64, c_void_p, c_char
 from functools import partial
 from hashlib import sha256
