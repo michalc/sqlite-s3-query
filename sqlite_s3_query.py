@@ -199,7 +199,7 @@ def sqlite_s3_query(url, get_credentials=lambda: (
             c_double_p[0] = time()/86400.0 + 2440587.5;
             return SQLITE_OK
 
-        io_methods = make_struct(tuple((
+        io_methods = make_struct((
             ('i_version', c_int, 1),
             ('x_close', x_close_type, x_close_type(x_close)),
             ('x_read', x_read_type, x_read_type(x_read)),
@@ -213,11 +213,11 @@ def sqlite_s3_query(url, get_credentials=lambda: (
             ('x_file_control', x_file_control_type, x_file_control_type(x_file_control)),
             ('x_sector_size', c_void_p, None),
             ('x_device_characteristics', x_device_characteristics_type, x_device_characteristics_type(x_device_characteristics)),
-        )))
-        file = make_struct(tuple((
+        ))
+        file = make_struct((
             ('p_methods', POINTER(type(io_methods)), pointer(io_methods)),
-        )))
-        vfs = make_struct(tuple((
+        ))
+        vfs = make_struct((
             ('i_version', c_int, 1),
             ('sz_os_file', c_int, sizeof(file)),
             ('mx_pathname', c_int, 1024),
@@ -236,7 +236,7 @@ def sqlite_s3_query(url, get_credentials=lambda: (
             ('x_sleep', c_void_p, None),
             ('x_current_time', x_current_time_type, x_current_time_type(x_current_time)),
             ('x_get_last_error', c_void_p, None),
-        )))
+        ))
 
         run(libsqlite3.sqlite3_vfs_register, byref(vfs), 0)
         try:
