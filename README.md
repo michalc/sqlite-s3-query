@@ -25,8 +25,15 @@ The libsqlite3 binary library is also required, but this is typically already in
 from sqlite_s3_query import sqlite_s3_query
 
 with sqlite_s3_query(url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite') as query:
-    for row in query('SELECT * FROM my_table WHERE my_column = ?', params=('my-value',)):
-        print(row)
+
+    with query('SELECT * FROM my_table WHERE my_column = ?', params=('my-value',)) as (columns, rows):
+        for row in rows:
+            print(row)
+
+    # Exactly the same results, even if the object in S3 was replaced
+    with query('SELECT * FROM my_table WHERE my_column = ?', params=('my-value',)) as (columns, rows):
+        for row in rows:
+            print(row)
 ```
 
 If in your project you query the same object from multiple places, `functools.partial` can be used to make an interface with less duplication.
@@ -39,12 +46,18 @@ query_my_db = partial(sqlite_s3_query,
     url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite',
 )
 
-with query_my_db() as query:
-    for row in query('SELECT * FROM my_table WHERE my_col = ?', params=('my-value',)):
+with \
+        query_my_db() as query, \
+        query('SELECT * FROM my_table WHERE my_col = ?', params=('my-value',)) as (columns, rows):
+
+    for row in rows:
         print(row)
 
-with query_my_db() as query:
-    for row in query('SELECT * FROM my_table_2 WHERE my_col = ?', params=('my-value',)):
+with \
+        query_my_db() as query, \
+        query('SELECT * FROM my_table_2 WHERE my_col = ?', params=('my-value',)) as (columns, rows):
+
+    for row in rows:
         print(row)
 ```
 
@@ -65,8 +78,11 @@ query_my_db = partial(sqlite_s3_query
     ),
 )
 
-with query_my_db() as query:
-    for row in query_my_db('SELECT * FROM my_table_2 WHERE my_col = ?', params=('my-value',)):
+with \
+        query_my_db() as query, \
+        query_my_db('SELECT * FROM my_table_2 WHERE my_col = ?', params=('my-value',)) as (columns, rows):
+
+    for row in rows:
         print(row)
 ```
 
@@ -82,8 +98,11 @@ query_my_db = partial(sqlite_s3_query,
     get_http_client=lambda: httpx.Client(),
 )
 
-with query_my_db() as query:
-    for row in query_my_db('SELECT * FROM my_table WHERE my_col = ?', params=('my-value',)):
+with \
+        query_my_db() as query, \
+        query_my_db('SELECT * FROM my_table WHERE my_col = ?', params=('my-value',)) as (columns, rows):
+
+    for row in rows:
         print(row)
 ```
 
@@ -93,7 +112,6 @@ The location of the libsqlite3 library can be changed by overriding the `get_lib
 from ctypes import cdll
 from functools import partial
 from sys import platform
-import httpx
 from sqlite_s3_query import sqlite_s3_query
 
 query_my_db = partial(sqlite_s3_query,
@@ -101,7 +119,10 @@ query_my_db = partial(sqlite_s3_query,
     get_libsqlite3=lambda: cdll.LoadLibrary({'linux': 'libsqlite3.so', 'darwin': 'libsqlite3.dylib'}[platform])
 )
 
-with query_my_db() as query:
-    for row in query_my_db('SELECT * FROM my_table WHERE my_col = ?', params=('my-value',)):
+with \
+        query_my_db() as query, \
+        query_my_db('SELECT * FROM my_table WHERE my_col = ?', params=('my-value',)) as (columns, rows):
+
+    for row in rows:
         print(row)
 ```

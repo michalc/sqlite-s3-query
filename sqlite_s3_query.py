@@ -262,28 +262,31 @@ def sqlite_s3_query(url, get_credentials=lambda: (
         finally:
             run_with_db(db, libsqlite3.sqlite3_finalize, pp_stmt)
 
+    @contextmanager
     def query(db, sql, params=()):
         with get_pp_stmt(db, sql) as pp_stmt:
-
             for i, param in enumerate(params):
                 run_with_db(db, bind[type(param)], pp_stmt, i + 1, param)
 
-            row_constructor = namedtuple('Row', (
-                sub('_+', '_', sub(r'\W|^(?=\d)','_', libsqlite3.sqlite3_column_name(pp_stmt, i).decode()).strip('_'))
+            columns = tuple(
+                libsqlite3.sqlite3_column_name(pp_stmt, i).decode()
                 for i in range(0, libsqlite3.sqlite3_column_count(pp_stmt))
-            ))
+            )
 
-            while True:
-                res = libsqlite3.sqlite3_step(pp_stmt)
-                if res == SQLITE_DONE:
-                    break
-                if res != SQLITE_ROW:
-                    raise Exception(libsqlite3.sqlite3_errstr(res).decode())
+            def rows():
+                while True:
+                    res = libsqlite3.sqlite3_step(pp_stmt)
+                    if res == SQLITE_DONE:
+                        break
+                    if res != SQLITE_ROW:
+                        raise Exception(libsqlite3.sqlite3_errstr(res).decode())
 
-                yield row_constructor(*(
-                    extract[libsqlite3.sqlite3_column_type(pp_stmt, i)](pp_stmt, i)
-                    for i in range(0, len(row_constructor._fields))
-                ))
+                    yield tuple(
+                        extract[libsqlite3.sqlite3_column_type(pp_stmt, i)](pp_stmt, i)
+                        for i in range(0, len(columns))
+                    )
+
+            yield columns, rows()
 
     with \
             get_http_client() as http_client, \
