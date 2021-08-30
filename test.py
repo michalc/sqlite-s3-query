@@ -140,6 +140,25 @@ class TestSqliteS3Query(unittest.TestCase):
             with self.assertRaises(Exception):
                 query("SELECT * FROM non_table").__enter__()
 
+    def test_bad_db_second_half(self):
+        db = get_db(["CREATE TABLE my_table (my_col_a text, my_col_b text);"] + [
+            "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 5000),
+        ])
+
+        half_len = int(len(db) / 2)
+        db = db[:half_len] + len(db[half_len:]) * b'-'
+        put_object('my-bucket', 'my.db', db)
+
+        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda: (
+            'us-east-1',
+            'AKIAIOSFODNN7EXAMPLE',
+            'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            None,
+        )) as query:
+            with self.assertRaises(Exception):
+                with query("SELECT * FROM my_table") as (columns, rows):
+                    list(rows)
+
 def put_object(bucket, key, content):
     create_bucket(bucket)
     enable_versioning(bucket)
