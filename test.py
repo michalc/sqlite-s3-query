@@ -112,6 +112,20 @@ class TestSqliteS3Query(unittest.TestCase):
             with self.assertRaises(Exception):
                 query("SELECT * FROM non_table").__enter__()
 
+    def test_empty_object(self):
+        db = get_db(["CREATE TABLE my_table (my_col_a text, my_col_b text);"])
+
+        put_object('my-bucket', 'my.db', b'')
+
+        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda: (
+            'us-east-1',
+            'AKIAIOSFODNN7EXAMPLE',
+            'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            None,
+        )) as query:
+            with self.assertRaises(Exception):
+                query("SELECT * FROM non_table").__enter__()
+
 def put_object(bucket, key, content):
     create_bucket(bucket)
     enable_versioning(bucket)

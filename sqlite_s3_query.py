@@ -34,6 +34,7 @@ def sqlite_s3_query(url, get_credentials=lambda: (
     SQLITE_NOTFOUND = 12
     SQLITE_ROW = 100
     SQLITE_DONE = 101
+    SQLITE_IOERR_SHORT_READ = 522
     SQLITE_TRANSIENT = -1
     SQLITE_OPEN_READONLY = 0x00000001
     SQLITE_OPEN_URI = 0x00000040
@@ -172,8 +173,12 @@ def sqlite_s3_query(url, get_credentials=lambda: (
 
         x_read_type = CFUNCTYPE(c_int, c_void_p, c_void_p, c_int, c_int64)
         def x_read(p_file, p_out, i_amt, i_ofst):
-            memmove(p_out, get_range(i_ofst, i_ofst + i_amt - 1), i_amt)
-            return SQLITE_OK
+            try:
+                memmove(p_out, get_range(i_ofst, i_ofst + i_amt - 1), i_amt)
+            except Exception:
+                return SQLITE_IOERR_SHORT_READ
+            else:
+                return SQLITE_OK
 
         x_file_size_type = CFUNCTYPE(c_int, c_void_p, POINTER(c_int))
         def x_file_size(p_file, p_size):
