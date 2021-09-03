@@ -80,7 +80,7 @@ query_my_db = partial(sqlite_s3_query
 
 with \
         query_my_db() as query, \
-        query_my_db('SELECT * FROM my_table_2 WHERE my_col = ?', params=('my-value',)) as (columns, rows):
+        query('SELECT * FROM my_table_2 WHERE my_col = ?', params=('my-value',)) as (columns, rows):
 
     for row in rows:
         print(row)
@@ -100,7 +100,7 @@ query_my_db = partial(sqlite_s3_query,
 
 with \
         query_my_db() as query, \
-        query_my_db('SELECT * FROM my_table WHERE my_col = ?', params=('my-value',)) as (columns, rows):
+        query('SELECT * FROM my_table WHERE my_col = ?', params=('my-value',)) as (columns, rows):
 
     for row in rows:
         print(row)
@@ -121,7 +121,7 @@ query_my_db = partial(sqlite_s3_query,
 
 with \
         query_my_db() as query, \
-        query_my_db('SELECT * FROM my_table WHERE my_col = ?', params=('my-value',)) as (columns, rows):
+        query('SELECT * FROM my_table WHERE my_col = ?', params=('my-value',)) as (columns, rows):
 
     for row in rows:
         print(row)
