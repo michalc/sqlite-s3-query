@@ -164,7 +164,7 @@ def sqlite_s3_query(url, get_credentials=lambda: (
                 range_bytes = b''
                 for chunk in response.iter_bytes(chunk_size=bytes_to - bytes_from + 1):
                     range_bytes += chunk
-                    if len(range_bytes) >= bytes_to - bytes_from + 1:
+                    if len(range_bytes) > bytes_to - bytes_from + 1:
                         break
 
             return range_bytes
