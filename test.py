@@ -184,6 +184,8 @@ class TestSqliteS3Query(unittest.TestCase):
                     while chunk:
                         target.sendall(chunk)
                         chunk = source.recv(1)
+                except OSError:
+                    pass
                 finally:
                     done.set()
 
@@ -202,18 +204,14 @@ class TestSqliteS3Query(unittest.TestCase):
             finally:
                 if upstream_sock is not None:
                     try:
-                        upstream_sock.shutdown(socket.SHUT_RDWR)
+                        upstream_sock.close()
                     except OSError:
                         pass
-                    finally:
-                        upstream_sock.close()
 
                 try:
-                    downstream_sock.shutdown(socket.SHUT_RDWR)
+                    downstream_sock.close()
                 except OSError:
                     pass
-                finally:
-                    downstream_sock.close()
 
         @contextmanager
         def server():
