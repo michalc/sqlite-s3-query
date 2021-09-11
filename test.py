@@ -233,7 +233,7 @@ class TestSqliteS3Query(unittest.TestCase):
             server_sock = get_new_socket()
             server_sock.bind(('127.0.0.1', 9001))
             server_sock.listen(socket.IPPROTO_TCP)
-            threading.Thread(target=_run, args=(server_sock,)).start()
+            threading.Thread(target=_run, args=(server_sock,), daemon=True).start()
 
             try:
                 yield server_sock
