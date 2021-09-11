@@ -163,7 +163,7 @@ def sqlite_s3_query(url, get_credentials=lambda: (
                 # Handle the case of the server being broken or slightly evil, returning more than
                 # the number of bytes that's asked for
                 range_bytes = b''
-                for chunk in response.iter_bytes(chunk_size=bytes_to - bytes_from + 1):
+                for chunk in response.iter_bytes():
                     range_bytes += chunk
                     if len(range_bytes) > bytes_to - bytes_from + 1:
                         break
