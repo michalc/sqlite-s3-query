@@ -164,48 +164,6 @@ class TestSqliteS3Query(unittest.TestCase):
     def test_num_connections(self):
         num_connections = 0
 
-        def get_new_socket():
-            sock = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM,
-                                 proto=socket.IPPROTO_TCP)
-            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-            return sock
-
-        def upstream_connect():
-            upstream_sock = socket.create_connection(('127.0.0.1', 9000))
-            upstream_sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-            return upstream_sock
-
-        @contextmanager
-        def shutdown(sock):
-            try:
-                yield sock
-            finally:
-                try:
-                    sock.shutdown(socket.SHUT_RDWR)
-                except OSError:
-                    pass
-                finally:
-                    sock.close()
-
-        def proxy(done, source, target):
-            try:
-                chunk = source.recv(1)
-                while chunk:
-                    target.sendall(chunk)
-                    chunk = source.recv(1)
-            finally:
-                done.set()
-
-        def handle_downstream(downstream_sock):
-            with \
-                    shutdown(upstream_connect()) as upstream_sock, \
-                    shutdown(downstream_sock) as downstream_sock:
-
-                done = threading.Event()
-                threading.Thread(target=proxy, args=(done, upstream_sock, downstream_sock)).start()
-                threading.Thread(target=proxy, args=(done, downstream_sock, upstream_sock)).start()
-                done.wait()
-
         @contextmanager
         def server():
             nonlocal num_connections
@@ -370,3 +328,45 @@ def get_db(sqls):
 
         with open(fp.name, 'rb') as f:
             return f.read()
+
+def get_new_socket():
+    sock = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM,
+                         proto=socket.IPPROTO_TCP)
+    sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    return sock
+
+def upstream_connect():
+    upstream_sock = socket.create_connection(('127.0.0.1', 9000))
+    upstream_sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    return upstream_sock
+
+@contextmanager
+def shutdown(sock):
+    try:
+        yield sock
+    finally:
+        try:
+            sock.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+        finally:
+            sock.close()
+
+def proxy(done, source, target):
+    try:
+        chunk = source.recv(1)
+        while chunk:
+            target.sendall(chunk)
+            chunk = source.recv(1)
+    finally:
+        done.set()
+
+def handle_downstream(downstream_sock):
+    with \
+            shutdown(upstream_connect()) as upstream_sock, \
+            shutdown(downstream_sock) as downstream_sock:
+
+        done = threading.Event()
+        threading.Thread(target=proxy, args=(done, upstream_sock, downstream_sock)).start()
+        threading.Thread(target=proxy, args=(done, downstream_sock, upstream_sock)).start()
+        done.wait()
