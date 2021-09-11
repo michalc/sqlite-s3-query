@@ -1,9 +1,12 @@
+from contextlib import contextmanager
 import datetime
 import functools
 import hashlib
 import hmac
+import socket
 import sqlite3
 import tempfile
+import threading
 import unittest
 import urllib.parse
 import uuid
@@ -157,6 +160,118 @@ class TestSqliteS3Query(unittest.TestCase):
             with self.assertRaises(Exception):
                 with query("SELECT * FROM my_table") as (columns, rows):
                     list(rows)
+
+    def test_num_connections(self):
+        num_connections = 0
+
+        def get_new_socket():
+            sock = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM,
+                                 proto=socket.IPPROTO_TCP)
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            return sock
+
+        def upstream_connect():
+            upstream_sock = socket.create_connection(('127.0.0.1', 9000))
+            upstream_sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            return upstream_sock
+
+        def proxy_both_directions(sock_a, sock_b):
+            done = threading.Event()
+
+            def _proxy(source, target):
+                try:
+                    chunk = source.recv(1)
+                    while chunk:
+                        target.sendall(chunk)
+                        chunk = source.recv(1)
+                finally:
+                    done.set()
+
+            threading.Thread(target=_proxy, args=(sock_a, sock_b)).start()
+            threading.Thread(target=_proxy, args=(sock_b, sock_a)).start()
+            done.wait()
+
+        def handle_downstream(downstream_sock):
+            upstream_sock = None
+
+            try:
+                upstream_sock = upstream_connect()
+                proxy_both_directions(downstream_sock, upstream_sock)
+            except:
+                pass
+            finally:
+                if upstream_sock is not None:
+                    try:
+                        upstream_sock.shutdown(socket.SHUT_RDWR)
+                    except OSError:
+                        pass
+                    finally:
+                        upstream_sock.close()
+
+                try:
+                    downstream_sock.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+                finally:
+                    downstream_sock.close()
+
+        @contextmanager
+        def server():
+            nonlocal num_connections
+            def _run(server_sock):
+                nonlocal num_connections
+
+                while True:
+                    try:
+                        downstream_sock, _ = server_sock.accept()
+                    except Exception:
+                        return
+                    num_connections += 1
+                    connection_t = threading.Thread(target=handle_downstream, args=(downstream_sock,))
+                    connection_t.start()
+
+            server_sock = get_new_socket()
+            server_sock.bind(('127.0.0.1', 9001))
+            server_sock.listen(socket.IPPROTO_TCP)
+            threading.Thread(target=_run, args=(server_sock,)).start()
+
+            try:
+                yield server_sock
+            finally:
+                server_sock.close()
+
+        def get_http_client():
+            @contextmanager
+            def client():
+                with httpx.Client() as original_client:
+                    class Client():
+                        def stream(self, method, url, headers):
+                            parsed_url = urllib.parse.urlparse(url)
+                            url = urllib.parse.urlunparse(parsed_url._replace(netloc='localhost:9001'))
+                            return original_client.stream(method, url, headers=headers + (('host', 'localhost:9000'),))
+                    yield Client()
+            return client()
+
+        with server() as server_sock:
+            db = get_db([
+                "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+            ] + [
+                "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
+            ])
+
+            put_object('my-bucket', 'my.db', db)
+
+            with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda: (
+                'us-east-1',
+                'AKIAIOSFODNN7EXAMPLE',
+                'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+                None,
+            ), get_http_client=get_http_client) as query:
+                with query('SELECT my_col_a FROM my_table') as (columns, rows):
+                    rows = list(rows)
+
+            self.assertEqual(rows, [('some-text-a',)] * 500)
+            self.assertEqual(num_connections, 1)
 
 def put_object(bucket, key, content):
     create_bucket(bucket)

@@ -150,6 +150,7 @@ def sqlite_s3_query(url, get_credentials=lambda: (
     def get_vfs(http_client):
         with make_auth_request(http_client, 'HEAD', (), ()) as response:
             head_headers = response.headers
+            next(response.iter_bytes())
         version_id = head_headers['x-amz-version-id']
         size = int(head_headers['content-length'])
 
