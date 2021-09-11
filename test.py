@@ -225,7 +225,7 @@ class TestSqliteS3Query(unittest.TestCase):
                     try:
                         downstream_sock, _ = server_sock.accept()
                     except Exception:
-                        return
+                        break
                     num_connections += 1
                     connection_t = threading.Thread(target=handle_downstream, args=(downstream_sock,))
                     connection_t.start()
@@ -233,12 +233,17 @@ class TestSqliteS3Query(unittest.TestCase):
             server_sock = get_new_socket()
             server_sock.bind(('127.0.0.1', 9001))
             server_sock.listen(socket.IPPROTO_TCP)
-            threading.Thread(target=_run, args=(server_sock,), daemon=True).start()
+            threading.Thread(target=_run, args=(server_sock,)).start()
 
             try:
                 yield server_sock
             finally:
-                server_sock.close()
+                try:
+                    server_sock.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+                finally:
+                    server_sock.close()
 
         def get_http_client():
             @contextmanager
