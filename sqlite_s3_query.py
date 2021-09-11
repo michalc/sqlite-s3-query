@@ -82,10 +82,10 @@ def sqlite_s3_query(url, get_credentials=lambda: (
             ()
         )
         request_headers = aws_sigv4_headers(
-            access_key_id, secret_access_key, region, 'GET', to_auth_headers, params,
+            access_key_id, secret_access_key, region, method, to_auth_headers, params,
         )
         url = f'{scheme}://{netloc}{path}?{urlencode(params)}'
-        response = http_client.get(url, headers=request_headers)
+        response = http_client.request(method, url, headers=request_headers)
         response.raise_for_status()
         return response
 
@@ -151,7 +151,7 @@ def sqlite_s3_query(url, get_credentials=lambda: (
         version_id = head_headers['x-amz-version-id']
         size = int(head_headers['content-length'])
         get_range = lambda bytes_from, bytes_to: \
-            make_auth_request(http_client, 'HEAD',
+            make_auth_request(http_client, 'GET',
                 (('versionId', version_id),),
                 (('range', f'bytes={bytes_from}-{bytes_to}'),)
             ).content
