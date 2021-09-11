@@ -175,22 +175,6 @@ class TestSqliteS3Query(unittest.TestCase):
             upstream_sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             return upstream_sock
 
-        def proxy_both_directions(sock_a, sock_b):
-            done = threading.Event()
-
-            def _proxy(source, target):
-                try:
-                    chunk = source.recv(1)
-                    while chunk:
-                        target.sendall(chunk)
-                        chunk = source.recv(1)
-                finally:
-                    done.set()
-
-            threading.Thread(target=_proxy, args=(sock_a, sock_b)).start()
-            threading.Thread(target=_proxy, args=(sock_b, sock_a)).start()
-            done.wait()
-
         @contextmanager
         def shutdown(sock):
             try:
@@ -203,12 +187,24 @@ class TestSqliteS3Query(unittest.TestCase):
                 finally:
                     sock.close()
 
+        def proxy(done, source, target):
+            try:
+                chunk = source.recv(1)
+                while chunk:
+                    target.sendall(chunk)
+                    chunk = source.recv(1)
+            finally:
+                done.set()
+
         def handle_downstream(downstream_sock):
             with \
                     shutdown(upstream_connect()) as upstream_sock, \
                     shutdown(downstream_sock) as downstream_sock:
 
-                proxy_both_directions(downstream_sock, upstream_sock)
+                done = threading.Event()
+                threading.Thread(target=proxy, args=(done, upstream_sock, downstream_sock)).start()
+                threading.Thread(target=proxy, args=(done, downstream_sock, upstream_sock)).start()
+                done.wait()
 
         @contextmanager
         def server():
