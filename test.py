@@ -254,7 +254,7 @@ class TestSqliteS3Query(unittest.TestCase):
                                 def iter_bytes(chunk_size=None):
                                     yield from chunks
                                     if is_query:
-                                        yield b'extra'
+                                        yield b'e'
                                 response.iter_bytes = iter_bytes
                                 yield response
                     yield Client()
