@@ -218,6 +218,66 @@ class TestSqliteS3Query(unittest.TestCase):
             self.assertEqual(rows, [('some-text-a',)] * 500)
             self.assertEqual(num_connections, 1)
 
+    def test_too_many_bytes(self):
+        @contextmanager
+        def server():
+            def _run(server_sock):
+                while True:
+                    try:
+                        downstream_sock, _ = server_sock.accept()
+                    except Exception:
+                        break
+                    connection_t = threading.Thread(target=handle_downstream, args=(downstream_sock,))
+                    connection_t.start()
+
+            with shutdown(get_new_socket()) as server_sock:
+                server_sock.bind(('127.0.0.1', 9001))
+                server_sock.listen(socket.IPPROTO_TCP)
+                threading.Thread(target=_run, args=(server_sock,)).start()
+                yield server_sock
+
+        def get_http_client():
+            @contextmanager
+            def client():
+                with httpx.Client() as original_client:
+                    class Client():
+                        @contextmanager
+                        def stream(self, method, url, headers):
+                            parsed_url = urllib.parse.urlparse(url)
+                            url = urllib.parse.urlunparse(parsed_url._replace(netloc='localhost:9001'))
+                            range_query = dict(headers).get('range')
+                            is_query = range_query and range_query != 'bytes=0-99'
+                            with original_client.stream(method, url,
+                                headers=headers + (('host', 'localhost:9000'),)
+                            ) as response:
+                                chunks = response.iter_bytes()
+                                def iter_bytes(chunk_size=None):
+                                    yield from chunks
+                                    if is_query:
+                                        yield b'extra'
+                                response.iter_bytes = iter_bytes
+                                yield response
+                    yield Client()
+            return client()
+
+        with server() as server_sock:
+            db = get_db([
+                "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+            ] + [
+                "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
+            ])
+
+            put_object('my-bucket', 'my.db', db)
+
+            with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda: (
+                'us-east-1',
+                'AKIAIOSFODNN7EXAMPLE',
+                'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+                None,
+            ), get_http_client=get_http_client) as query:
+                with self.assertRaisesRegex(Exception, 'disk I/O error'):
+                    query('SELECT my_col_a FROM my_table').__enter__()
+
 def put_object(bucket, key, content):
     create_bucket(bucket)
     enable_versioning(bucket)
@@ -358,6 +418,8 @@ def proxy(done, source, target):
         while chunk:
             target.sendall(chunk)
             chunk = source.recv(1)
+    except OSError:
+        pass
     finally:
         done.set()
 
