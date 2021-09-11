@@ -171,7 +171,7 @@ def sqlite_s3_query(url, get_credentials=lambda: (
 
         x_read_type = CFUNCTYPE(c_int, c_void_p, c_void_p, c_int, c_int64)
         def x_read(p_file, p_out, i_amt, i_ofst):
-            data = b''
+            offset = 0
 
             try:
                 with make_auth_request(http_client, 'GET',
@@ -181,16 +181,16 @@ def sqlite_s3_query(url, get_credentials=lambda: (
                     # Handle the case of the server being broken or slightly evil,
                     # returning more than the number of bytes that's asked for
                     for chunk in response.iter_bytes():
-                        data += chunk
-                        if len(data) > i_amt:
+                        memmove(p_out + offset, chunk, min(i_amt - offset, len(chunk)))
+                        offset += len(chunk)
+                        if offset > i_amt:
                             break
             except Exception:
                 return SQLITE_IOERR
 
-            if len(data) != i_amt:
+            if offset != i_amt:
                 return SQLITE_IOERR
 
-            memmove(p_out, data, i_amt)
             return SQLITE_OK
 
         x_file_size_type = CFUNCTYPE(c_int, c_void_p, POINTER(c_int))
