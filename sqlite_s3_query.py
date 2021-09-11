@@ -154,22 +154,6 @@ def sqlite_s3_query(url, get_credentials=lambda: (
         version_id = head_headers['x-amz-version-id']
         size = int(head_headers['content-length'])
 
-        def get_range(bytes_from, bytes_to):
-            with make_auth_request(http_client, 'GET',
-                    (('versionId', version_id),),
-                    (('range', f'bytes={bytes_from}-{bytes_to}'),)
-                ) as response:
-
-                # Handle the case of the server being broken or slightly evil, returning more than
-                # the number of bytes that's asked for
-                range_bytes = b''
-                for chunk in response.iter_bytes():
-                    range_bytes += chunk
-                    if len(range_bytes) > bytes_to - bytes_from + 1:
-                        break
-
-            return range_bytes
-
         def make_struct(fields):
             class Struct(Structure):
                 _fields_ = [(field_name, field_type) for (field_name, field_type, _) in fields]
@@ -187,8 +171,19 @@ def sqlite_s3_query(url, get_credentials=lambda: (
 
         x_read_type = CFUNCTYPE(c_int, c_void_p, c_void_p, c_int, c_int64)
         def x_read(p_file, p_out, i_amt, i_ofst):
+            data = b''
+
             try:
-                data = get_range(i_ofst, i_ofst + i_amt - 1)
+                with make_auth_request(http_client, 'GET',
+                    (('versionId', version_id),),
+                    (('range', f'bytes={i_ofst}-{i_ofst + i_amt - 1}'),)
+                ) as response:
+                    # Handle the case of the server being broken or slightly evil,
+                    # returning more than the number of bytes that's asked for
+                    for chunk in response.iter_bytes():
+                        data += chunk
+                        if len(data) > i_amt:
+                            break
             except Exception:
                 return SQLITE_IOERR
 
