@@ -155,7 +155,7 @@ def sqlite_s3_query(url, get_credentials=lambda: (
                 (('versionId', version_id),),
                 (('range', f'bytes={offset}-{offset + amount - 1}'),)
             ).content
-            if type(data) is not bytes or len(data) != amount:
+            if len(data) != amount:
                 raise TypeError
             return data
 
