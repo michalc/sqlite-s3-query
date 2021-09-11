@@ -1,4 +1,4 @@
-from datetime import datetime
+import datetime
 import functools
 import hashlib
 import hmac
@@ -91,7 +91,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
         )) as query:
-            now = datetime.utcnow()
+            now = datetime.datetime.utcnow()
             with query("SELECT date('now'), time('now')") as (columns, rows):
                 rows = list(rows)
 
@@ -208,7 +208,7 @@ def aws_sigv4_headers(access_key_id, secret_access_key, pre_auth_headers,
                       service, region, host, method, path, params, body_hash):
     algorithm = 'AWS4-HMAC-SHA256'
 
-    now = datetime.utcnow()
+    now = datetime.datetime.utcnow()
     amzdate = now.strftime('%Y%m%dT%H%M%SZ')
     datestamp = now.strftime('%Y%m%d')
     credential_scope = f'{datestamp}/{region}/{service}/aws4_request'
