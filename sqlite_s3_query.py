@@ -31,10 +31,10 @@ def sqlite_s3_query(url, get_credentials=lambda: (
     libsqlite3.sqlite3_column_blob.restype = c_void_p
     libsqlite3.sqlite3_column_bytes.restype = c_int64
     SQLITE_OK = 0
+    SQLITE_IOERR = 10
     SQLITE_NOTFOUND = 12
     SQLITE_ROW = 100
     SQLITE_DONE = 101
-    SQLITE_IOERR_SHORT_READ = 522
     SQLITE_TRANSIENT = -1
     SQLITE_OPEN_READONLY = 0x00000001
     SQLITE_OPEN_URI = 0x00000040
@@ -189,10 +189,10 @@ def sqlite_s3_query(url, get_credentials=lambda: (
             try:
                 data = get_range(i_ofst, i_ofst + i_amt - 1)
             except Exception:
-                return SQLITE_IOERR_SHORT_READ
+                return SQLITE_IOERR
 
             if len(data) != i_amt:
-                return SQLITE_IOERR_SHORT_READ
+                return SQLITE_IOERR
 
             memmove(p_out, data, i_amt)
             return SQLITE_OK

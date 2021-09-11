@@ -117,14 +117,13 @@ class TestSqliteS3Query(unittest.TestCase):
 
         put_object('my-bucket', 'my.db', b'')
 
-        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda: (
-            'us-east-1',
-            'AKIAIOSFODNN7EXAMPLE',
-            'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-            None,
-        )) as query:
-            with self.assertRaises(Exception):
-                query("SELECT * FROM non_table").__enter__()
+        with self.assertRaises(Exception):
+            sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda: (
+                'us-east-1',
+                'AKIAIOSFODNN7EXAMPLE',
+                'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+                None,
+            )).__enter__()
 
     def test_bad_db_header(self):
         db = get_db(["CREATE TABLE my_table (my_col_a text, my_col_b text);"])
