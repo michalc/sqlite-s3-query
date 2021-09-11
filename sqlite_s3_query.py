@@ -75,6 +75,7 @@ def sqlite_s3_query(url, get_credentials=lambda: (
         if func(*args) != 0:
             raise Exception(libsqlite3.sqlite3_errmsg(db).decode())
 
+    @contextmanager
     def make_auth_request(http_client, method, params, headers):
         region, access_key_id, secret_access_key, session_token = get_credentials()
         to_auth_headers = headers + (
@@ -85,9 +86,9 @@ def sqlite_s3_query(url, get_credentials=lambda: (
             access_key_id, secret_access_key, region, method, to_auth_headers, params,
         )
         url = f'{scheme}://{netloc}{path}?{urlencode(params)}'
-        response = http_client.request(method, url, headers=request_headers)
-        response.raise_for_status()
-        return response
+        with http_client.stream(method, url, headers=request_headers) as response:
+            response.raise_for_status()
+            yield response
 
     def aws_sigv4_headers(
         access_key_id, secret_access_key, region, method, to_auth_headers, params,
@@ -147,14 +148,26 @@ def sqlite_s3_query(url, get_credentials=lambda: (
 
     @contextmanager
     def get_vfs(http_client):
-        head_headers = make_auth_request(http_client, 'HEAD', (), ()).headers
+        with make_auth_request(http_client, 'HEAD', (), ()) as response:
+            head_headers = response.headers
         version_id = head_headers['x-amz-version-id']
         size = int(head_headers['content-length'])
-        get_range = lambda bytes_from, bytes_to: \
-            make_auth_request(http_client, 'GET',
-                (('versionId', version_id),),
-                (('range', f'bytes={bytes_from}-{bytes_to}'),)
-            ).content
+
+        def get_range(bytes_from, bytes_to):
+            with make_auth_request(http_client, 'GET',
+                    (('versionId', version_id),),
+                    (('range', f'bytes={bytes_from}-{bytes_to}'),)
+                ) as response:
+
+                # Handle the case of the server being broken or slightly evil, returning more than
+                # the number of bytes that's asked for
+                range_bytes = b''
+                for chunk in response.iter_bytes(chunk_size=bytes_to - bytes_from + 1):
+                    range_bytes += chunk
+                    if len(range_bytes) >= bytes_to - bytes_from + 1:
+                        break
+
+            return range_bytes
 
         def make_struct(fields):
             class Struct(Structure):
