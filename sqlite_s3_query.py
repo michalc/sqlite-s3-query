@@ -150,14 +150,11 @@ def sqlite_s3_query(url, get_credentials=lambda: (
         head_headers = make_auth_request(http_client, 'HEAD', (), ()).headers
         version_id = head_headers['x-amz-version-id']
         size = int(head_headers['content-length'])
-        def get_range(offset, amount):
-            data = make_auth_request(http_client, 'HEAD',
+        get_range = lambda bytes_from, bytes_to: \
+            make_auth_request(http_client, 'HEAD',
                 (('versionId', version_id),),
-                (('range', f'bytes={offset}-{offset + amount - 1}'),)
+                (('range', f'bytes={bytes_from}-{bytes_to}'),)
             ).content
-            if len(data) != amount:
-                raise TypeError
-            return data
 
         def make_struct(fields):
             class Struct(Structure):
@@ -177,11 +174,15 @@ def sqlite_s3_query(url, get_credentials=lambda: (
         x_read_type = CFUNCTYPE(c_int, c_void_p, c_void_p, c_int, c_int64)
         def x_read(p_file, p_out, i_amt, i_ofst):
             try:
-                memmove(p_out, get_range(i_ofst, i_amt), i_amt)
+                data = get_range(i_ofst, i_ofst + i_amt - 1)
             except Exception:
                 return SQLITE_IOERR_SHORT_READ
-            else:
-                return SQLITE_OK
+
+            if len(data) != i_amt:
+                return SQLITE_IOERR_SHORT_READ
+
+            memmove(p_out, data, i_amt)
+            return SQLITE_OK
 
         x_file_size_type = CFUNCTYPE(c_int, c_void_p, POINTER(c_int))
         def x_file_size(p_file, p_size):
