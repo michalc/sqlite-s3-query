@@ -21,7 +21,7 @@ def sqlite_s3_query(url, get_credentials=lambda: (
     os.environ['AWS_SECRET_ACCESS_KEY'],
     os.environ.get('AWS_SESSION_TOKEN'),  # Only needed for temporary credentials
 ), get_http_client=lambda: httpx.Client(),
-   get_libsqlite3=lambda: cdll.LoadLibrary({'linux': 'libsqlite3.so', 'darwin': 'libsqlite3.dylib'}[platform])):
+   get_libsqlite3=lambda: cdll.LoadLibrary({'linux': 'libsqlite3.so.0', 'darwin': 'libsqlite3.dylib'}[platform])):
     libsqlite3 = get_libsqlite3()
     libsqlite3.sqlite3_errstr.restype = c_char_p
     libsqlite3.sqlite3_errmsg.restype = c_char_p
