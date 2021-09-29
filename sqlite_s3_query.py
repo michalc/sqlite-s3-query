@@ -91,25 +91,19 @@ def sqlite_s3_query(url, get_credentials=lambda: (
             yield response
 
     def aws_sigv4_headers(
-        access_key_id, secret_access_key, region, method, to_auth_headers, params,
+        access_key_id, secret_access_key, region, method, headers_to_sign, params,
     ):
         algorithm = 'AWS4-HMAC-SHA256'
 
-        now = datetime.utcnow()
-        amzdate = now.strftime('%Y%m%dT%H%M%SZ')
-        datestamp = now.strftime('%Y%m%d')
+        amzdate = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+        datestamp = amzdate[:8]
         credential_scope = f'{datestamp}/{region}/s3/aws4_request'
 
-        to_auth_headers_lower = tuple((
-            (header_key.lower(), ' '.join(header_value.split()))
-            for header_key, header_value in to_auth_headers
-        ))
-        required_headers = (
+        headers = tuple(sorted(headers_to_sign + (
             ('host', netloc),
             ('x-amz-content-sha256', body_hash),
             ('x-amz-date', amzdate),
-        )
-        headers = sorted(to_auth_headers_lower + required_headers)
+        )))
         signed_headers = ';'.join(key for key, _ in headers)
 
         def signature():
@@ -138,13 +132,11 @@ def sqlite_s3_query(url, get_credentials=lambda: (
             return sign(request_key, string_to_sign).hex()
 
         return (
-            (b'authorization', (
+            ('authorization', (
                 f'{algorithm} Credential={access_key_id}/{credential_scope}, '
-                f'SignedHeaders={signed_headers}, Signature=' + signature()).encode('ascii')
-             ),
-            (b'x-amz-date', amzdate.encode('ascii')),
-            (b'x-amz-content-sha256', body_hash.encode('ascii')),
-        ) + to_auth_headers
+                f'SignedHeaders={signed_headers}, Signature=' + signature())
+            ),
+        ) + headers
 
     @contextmanager
     def get_vfs(http_client):
