@@ -68,7 +68,7 @@ import os
 from functools import partial
 from sqlite_s3_query import sqlite_s3_query
 
-query_my_db = partial(sqlite_s3_query
+query_my_db = partial(sqlite_s3_query,
     url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite',
     get_credentials=lambda: (
         os.environ['AWS_REGION'],
