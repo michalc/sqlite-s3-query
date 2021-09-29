@@ -93,6 +93,9 @@ def sqlite_s3_query(url, get_credentials=lambda: (
     def aws_sigv4_headers(
         access_key_id, secret_access_key, region, method, headers_to_sign, params,
     ):
+        def sign(key, msg):
+            return hmac.new(key, msg.encode('ascii'), sha256).digest()
+
         algorithm = 'AWS4-HMAC-SHA256'
 
         amzdate = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
@@ -106,35 +109,29 @@ def sqlite_s3_query(url, get_credentials=lambda: (
         )))
         signed_headers = ';'.join(key for key, _ in headers)
 
-        def signature():
-            def canonical_request():
-                canonical_uri = quote(path, safe='/~')
-                quoted_params = sorted(
-                    (quote(key, safe='~'), quote(value, safe='~'))
-                    for key, value in params
-                )
-                canonical_querystring = '&'.join(f'{key}={value}' for key, value in quoted_params)
-                canonical_headers = ''.join(f'{key}:{value}\n' for key, value in headers)
+        canonical_uri = quote(path, safe='/~')
+        quoted_params = sorted(
+            (quote(key, safe='~'), quote(value, safe='~'))
+            for key, value in params
+        )
+        canonical_querystring = '&'.join(f'{key}={value}' for key, value in quoted_params)
+        canonical_headers = ''.join(f'{key}:{value}\n' for key, value in headers)
+        canonical_request = f'{method}\n{canonical_uri}\n{canonical_querystring}\n' + \
+                            f'{canonical_headers}\n{signed_headers}\n{body_hash}'
 
-                return f'{method}\n{canonical_uri}\n{canonical_querystring}\n' + \
-                       f'{canonical_headers}\n{signed_headers}\n{body_hash}'
+        string_to_sign = f'{algorithm}\n{amzdate}\n{credential_scope}\n' + \
+                         sha256(canonical_request.encode('ascii')).hexdigest()
 
-            def sign(key, msg):
-                return hmac.new(key, msg.encode('ascii'), sha256).digest()
-
-            string_to_sign = f'{algorithm}\n{amzdate}\n{credential_scope}\n' + \
-                             sha256(canonical_request().encode('ascii')).hexdigest()
-
-            date_key = sign(('AWS4' + secret_access_key).encode('ascii'), datestamp)
-            region_key = sign(date_key, region)
-            service_key = sign(region_key, 's3')
-            request_key = sign(service_key, 'aws4_request')
-            return sign(request_key, string_to_sign).hex()
+        date_key = sign(('AWS4' + secret_access_key).encode('ascii'), datestamp)
+        region_key = sign(date_key, region)
+        service_key = sign(region_key, 's3')
+        request_key = sign(service_key, 'aws4_request')
+        signature = sign(request_key, string_to_sign).hex()
 
         return (
             ('authorization', (
                 f'{algorithm} Credential={access_key_id}/{credential_scope}, '
-                f'SignedHeaders={signed_headers}, Signature=' + signature())
+                f'SignedHeaders={signed_headers}, Signature={signature}')
             ),
         ) + headers
 
