@@ -5,10 +5,15 @@ def long_description():
     with open('README.md', 'r') as file:
         return file.read()
 
+def get_version():
+    from sqlite_s3_query import version
+    return version
+
+version = get_version()
 
 setuptools.setup(
     name='sqlite-s3-query',
-    version='0.0.34',
+    version=version,
     author='Michal Charemza',
     author_email='michal@charemza.name',
     description='Python context manager to query a SQLite file stored on S3',

@@ -10,9 +10,13 @@ from sys import platform
 from time import time
 from urllib.parse import urlencode, urlsplit, quote
 from uuid import uuid4
+import logging
 
 import httpx
 
+version = "0.0.34.3"
+
+logger = logging.getLogger(__name__)
 
 @contextmanager
 def sqlite_s3_query(url, get_credentials=lambda: (
@@ -82,6 +86,12 @@ def sqlite_s3_query(url, get_credentials=lambda: (
             (('x-amz-security-token', session_token),) if session_token is not None else \
             ()
         )
+
+        has_versionID = [d[1] for d in params if d[0] == 'versionId']
+        if len(has_versionID) > 0 and has_versionID[0] is None:
+            # if the versionId is None, do not pass it forward
+            params = ()
+ 
         request_headers = aws_sigv4_headers(
             access_key_id, secret_access_key, region, method, to_auth_headers, params,
         )
@@ -140,7 +150,8 @@ def sqlite_s3_query(url, get_credentials=lambda: (
         with make_auth_request(http_client, 'HEAD', (), ()) as response:
             head_headers = response.headers
             next(response.iter_bytes())
-        version_id = head_headers['x-amz-version-id']
+        logger.debug(f"{head_headers}")
+        version_id = head_headers.get('x-amz-version-id') 
         size = int(head_headers['content-length'])
 
         def make_struct(fields):
@@ -163,6 +174,7 @@ def sqlite_s3_query(url, get_credentials=lambda: (
             offset = 0
 
             try:
+                # the object version can be None for unversioned buckets
                 with make_auth_request(http_client, 'GET',
                     (('versionId', version_id),),
                     (('range', f'bytes={i_ofst}-{i_ofst + i_amt - 1}'),)
@@ -253,6 +265,7 @@ def sqlite_s3_query(url, get_credentials=lambda: (
     @contextmanager
     def get_db(vfs):
         db = c_void_p()
+        logger.debug(f"opening {file_name} as {vfs_name.encode()}")
         run(libsqlite3.sqlite3_open_v2, f'file:/{file_name}?immutable=1'.encode() + b'\0', byref(db), SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, vfs_name.encode() + b'\0')
         try:
             yield db
