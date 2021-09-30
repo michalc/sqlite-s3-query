@@ -151,6 +151,8 @@ def sqlite_s3_query(url, get_credentials=lambda: (
             head_headers = response.headers
             next(response.iter_bytes())
         logger.debug(f"{head_headers}")
+
+        # this tag can be missing when working with unversioned S3 buckets
         version_id = head_headers.get('x-amz-version-id') 
         size = int(head_headers['content-length'])
 
