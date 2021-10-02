@@ -61,6 +61,8 @@ with \
         print(row)
 ```
 
+### Credentials
+
 The AWS region and the credentials are taken from environment variables, but this can be changed using the `get_credentials` parameter. Below shows the default implementation of this that can be overriden.
 
 ```python
@@ -86,6 +88,8 @@ with \
         print(row)
 ```
 
+### HTTP Client
+
 The HTTP client can be changed by overriding the the default `get_http_client` parameter, which is shown below.
 
 ```python
@@ -105,6 +109,8 @@ with \
     for row in rows:
         print(row)
 ```
+
+### Location of libsqlite3
 
 The location of the libsqlite3 library can be changed by overriding the `get_libsqlite3` parameter.
 
