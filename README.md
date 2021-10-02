@@ -67,17 +67,58 @@ The AWS region and the credentials are taken from environment variables, but thi
 
 ```python
 import os
-from functools import partial
-from sqlite_s3_query import sqlite_s3_query
 
-query_my_db = partial(sqlite_s3_query,
-    url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite',
-    get_credentials=lambda _: (
+def get_credentials(_):
+    return (
         os.environ['AWS_REGION'],
         os.environ['AWS_ACCESS_KEY_ID'],
         os.environ['AWS_SECRET_ACCESS_KEY'],
         os.environ.get('AWS_SESSION_TOKEN'),  # Only needed for temporary credentials
-    ),
+    )
+
+query_my_db = partial(sqlite_s3_query,
+    url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite',
+    get_credentials=get_credentials,
+)
+
+with \
+        query_my_db() as query, \
+        query('SELECT * FROM my_table_2 WHERE my_col = ?', params=('my-value',)) as (columns, rows):
+
+    for row in rows:
+        print(row)
+```
+
+How to use this to fetch credentials for the IAM role associated with an ECS container is shown in the example below.
+
+```python
+import os
+import httpx
+
+def GetECSCredentials():
+    aws_access_key_id, aws_secret_access_key, aws_session_token = None, None, None
+    expiration = datetime.datetime.fromtimestamp(0)
+    aws_region = os.environ['AWS_REGION']
+    creds_path = os.environ['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']
+
+    def get_credentials(now):
+        nonlocal aws_access_key_id, aws_secret_access_key, aws_session_token
+        nonlocal expiration
+
+        if now > expiration:
+            creds = httpx.get(f'http://169.254.170.2{creds_path}').json()
+            aws_access_key_id = creds['AccessKeyId']
+            aws_secret_access_key = creds['SecretAccessKey']
+            aws_session_token = creds['Token']
+            expiration = datetime.datetime.strptime(creds['Expiration'], '%Y-%m-%dT%H:%M:%SZ')
+
+        return aws_region, aws_access_key_id, aws_secret_access_key, aws_session_token
+
+    return get_credentials
+
+query_my_db = partial(sqlite_s3_query,
+    url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite',
+    get_credentials=GetECSCredentials(),
 )
 
 with \
