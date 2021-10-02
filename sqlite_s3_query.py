@@ -188,6 +188,14 @@ def sqlite_s3_query(url, get_credentials=lambda now: (
             p_size[0] = size
             return SQLITE_OK
 
+        x_lock_type = CFUNCTYPE(c_int, c_void_p, c_int)
+        def x_lock(p_file, e_lock):
+            return SQLITE_OK
+
+        x_unlock_type = CFUNCTYPE(c_int, c_void_p, c_int)
+        def x_unlock(p_file, e_lock):
+            return SQLITE_OK
+
         x_file_control_type = CFUNCTYPE(c_int, c_void_p, c_int, c_void_p)
         def x_file_control(p_file, op, p_arg):
             return SQLITE_NOTFOUND
@@ -195,6 +203,11 @@ def sqlite_s3_query(url, get_credentials=lambda now: (
         x_device_characteristics_type = CFUNCTYPE(c_int, c_void_p)
         def x_device_characteristics(p_file):
             return 0
+
+        x_access_type = CFUNCTYPE(c_int, c_void_p, c_char_p, c_int, POINTER(c_int))
+        def x_access(p_vfs, z_name, flags, z_out):
+            z_out[0] = 0
+            return SQLITE_OK
 
         x_full_pathname_type = CFUNCTYPE(c_int, c_void_p, c_char_p, c_int, POINTER(c_char))
         def x_full_pathname(p_vfs, z_name, n_out, z_out):
@@ -214,8 +227,8 @@ def sqlite_s3_query(url, get_credentials=lambda now: (
             ('x_truncate', c_void_p, None),
             ('x_sync', c_void_p, None),
             ('x_file_size', x_file_size_type, x_file_size_type(x_file_size)),
-            ('x_lock', c_void_p, None),
-            ('x_unlock', c_void_p, None),
+            ('x_lock', x_lock_type, x_lock_type(x_lock)),
+            ('x_unlock', x_unlock_type, x_unlock_type(x_unlock)),
             ('x_check_reserved_lock', c_void_p, None),
             ('x_file_control', x_file_control_type, x_file_control_type(x_file_control)),
             ('x_sector_size', c_void_p, None),
@@ -233,7 +246,7 @@ def sqlite_s3_query(url, get_credentials=lambda now: (
             ('p_app_data', c_char_p, None),
             ('x_open', x_open_type, x_open_type(x_open)),
             ('x_delete', c_void_p, None),
-            ('x_access', c_void_p, None),
+            ('x_access', x_access_type, x_access_type(x_access)),
             ('x_full_pathname', x_full_pathname_type, x_full_pathname_type(x_full_pathname)),
             ('x_dl_open', c_void_p, None),
             ('x_dl_error', c_void_p, None),
@@ -254,7 +267,7 @@ def sqlite_s3_query(url, get_credentials=lambda now: (
     @contextmanager
     def get_db(vfs):
         db = c_void_p()
-        run(libsqlite3.sqlite3_open_v2, f'file:/{file_name}?immutable=1'.encode() + b'\0', byref(db), SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, vfs_name.encode() + b'\0')
+        run(libsqlite3.sqlite3_open_v2, f'file:/{file_name}'.encode() + b'\0', byref(db), SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, vfs_name.encode() + b'\0')
         try:
             yield db
         finally:
@@ -263,7 +276,7 @@ def sqlite_s3_query(url, get_credentials=lambda now: (
     @contextmanager
     def get_pp_stmt(db, sql):
         pp_stmt = c_void_p()
-        run_with_db(db, libsqlite3.sqlite3_prepare_v3, db, sql.encode() + b'\0', -1, 0, byref(pp_stmt), None)
+        run_with_db(db, libsqlite3.sqlite3_prepare_v2, db, sql.encode() + b'\0', -1, byref(pp_stmt), None)
         try:
             yield pp_stmt
         finally:
