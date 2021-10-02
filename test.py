@@ -27,7 +27,7 @@ class TestSqliteS3Query(unittest.TestCase):
 
         put_object('my-bucket', 'my.db', db)
 
-        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda: (
+        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
             'us-east-1',
             'AKIAIOSFODNN7EXAMPLE',
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
@@ -47,7 +47,7 @@ class TestSqliteS3Query(unittest.TestCase):
 
         put_object('my-bucket', 'my.db', db)
 
-        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda: (
+        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
             'us-east-1',
             'AKIAIOSFODNN7EXAMPLE',
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
@@ -69,7 +69,7 @@ class TestSqliteS3Query(unittest.TestCase):
 
         query_my_db = functools.partial(sqlite_s3_query,
             url='http://localhost:9000/my-bucket/my.db',
-            get_credentials=lambda: (
+            get_credentials=lambda now: (
                 'us-east-1',
                 'AKIAIOSFODNN7EXAMPLE',
                 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
@@ -88,7 +88,7 @@ class TestSqliteS3Query(unittest.TestCase):
 
         put_object('my-bucket', 'my.db', db)
 
-        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda: (
+        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
             'us-east-1',
             'AKIAIOSFODNN7EXAMPLE',
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
@@ -106,7 +106,7 @@ class TestSqliteS3Query(unittest.TestCase):
 
         put_object('my-bucket', 'my.db', db)
 
-        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda: (
+        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
             'us-east-1',
             'AKIAIOSFODNN7EXAMPLE',
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
@@ -121,7 +121,7 @@ class TestSqliteS3Query(unittest.TestCase):
         put_object('my-bucket', 'my.db', b'')
 
         with self.assertRaises(Exception):
-            sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda: (
+            sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
                 'us-east-1',
                 'AKIAIOSFODNN7EXAMPLE',
                 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
@@ -133,7 +133,7 @@ class TestSqliteS3Query(unittest.TestCase):
 
         put_object('my-bucket', 'my.db', b'*' * 100)
 
-        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda: (
+        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
             'us-east-1',
             'AKIAIOSFODNN7EXAMPLE',
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
@@ -151,7 +151,7 @@ class TestSqliteS3Query(unittest.TestCase):
         db = db[:half_len] + len(db[half_len:]) * b'-'
         put_object('my-bucket', 'my.db', db)
 
-        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda: (
+        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
             'us-east-1',
             'AKIAIOSFODNN7EXAMPLE',
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
@@ -206,7 +206,7 @@ class TestSqliteS3Query(unittest.TestCase):
 
             put_object('my-bucket', 'my.db', db)
 
-            with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda: (
+            with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
                 'us-east-1',
                 'AKIAIOSFODNN7EXAMPLE',
                 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
@@ -269,7 +269,7 @@ class TestSqliteS3Query(unittest.TestCase):
 
             put_object('my-bucket', 'my.db', db)
 
-            with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda: (
+            with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
                 'us-east-1',
                 'AKIAIOSFODNN7EXAMPLE',
                 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
@@ -319,7 +319,7 @@ class TestSqliteS3Query(unittest.TestCase):
             put_object('my-bucket', 'my.db', db)
 
         with self.assertRaises(Exception):
-            sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda: (
+            sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
                 'us-east-1',
                 'AKIAIOSFODNN7EXAMPLE',
                 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',

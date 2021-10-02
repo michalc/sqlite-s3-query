@@ -72,7 +72,7 @@ from sqlite_s3_query import sqlite_s3_query
 
 query_my_db = partial(sqlite_s3_query,
     url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite',
-    get_credentials=lambda: (
+    get_credentials=lambda _: (
         os.environ['AWS_REGION'],
         os.environ['AWS_ACCESS_KEY_ID'],
         os.environ['AWS_SECRET_ACCESS_KEY'],

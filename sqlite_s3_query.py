@@ -15,7 +15,7 @@ import httpx
 
 
 @contextmanager
-def sqlite_s3_query(url, get_credentials=lambda: (
+def sqlite_s3_query(url, get_credentials=lambda now: (
     os.environ['AWS_REGION'],
     os.environ['AWS_ACCESS_KEY_ID'],
     os.environ['AWS_SECRET_ACCESS_KEY'],
@@ -77,13 +77,14 @@ def sqlite_s3_query(url, get_credentials=lambda: (
 
     @contextmanager
     def make_auth_request(http_client, method, params, headers):
-        region, access_key_id, secret_access_key, session_token = get_credentials()
+        now = datetime.utcnow()
+        region, access_key_id, secret_access_key, session_token = get_credentials(now)
         to_auth_headers = headers + (
             (('x-amz-security-token', session_token),) if session_token is not None else \
             ()
         )
         request_headers = aws_sigv4_headers(
-            access_key_id, secret_access_key, region, method, to_auth_headers, params,
+            now, access_key_id, secret_access_key, region, method, to_auth_headers, params,
         )
         url = f'{scheme}://{netloc}{path}?{urlencode(params)}'
         with http_client.stream(method, url, headers=request_headers) as response:
@@ -91,14 +92,14 @@ def sqlite_s3_query(url, get_credentials=lambda: (
             yield response
 
     def aws_sigv4_headers(
-        access_key_id, secret_access_key, region, method, headers_to_sign, params,
+        now, access_key_id, secret_access_key, region, method, headers_to_sign, params,
     ):
         def sign(key, msg):
             return hmac.new(key, msg.encode('ascii'), sha256).digest()
 
         algorithm = 'AWS4-HMAC-SHA256'
 
-        amzdate = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+        amzdate = now.strftime('%Y%m%dT%H%M%SZ')
         datestamp = amzdate[:8]
         credential_scope = f'{datestamp}/{region}/s3/aws4_request'
 
