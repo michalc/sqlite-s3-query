@@ -92,25 +92,38 @@ with \
 How to use this to fetch credentials for the IAM role associated with an ECS container is shown in the example below.
 
 ```python
+import contextlib
 import os
+import threading
 import httpx
 
 def GetECSCredentials():
     aws_access_key_id, aws_secret_access_key, aws_session_token = None, None, None
     expiration = datetime.datetime.fromtimestamp(0)
+    lock = threading.Lock()
     aws_region = os.environ['AWS_REGION']
     creds_path = os.environ['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']
+
+    @contextlib.contextmanager
+    def lock_with_timeout():
+        lock.acquire(timeout=10)
+        try:
+            yield
+        finally:
+            lock.release()
 
     def get_credentials(now):
         nonlocal aws_access_key_id, aws_secret_access_key, aws_session_token
         nonlocal expiration
 
-        if now > expiration:
-            creds = httpx.get(f'http://169.254.170.2{creds_path}').json()
-            aws_access_key_id = creds['AccessKeyId']
-            aws_secret_access_key = creds['SecretAccessKey']
-            aws_session_token = creds['Token']
-            expiration = datetime.datetime.strptime(creds['Expiration'], '%Y-%m-%dT%H:%M:%SZ')
+        # If this cannot be called from multiple threads at the same time, the lock can be ommitted
+        with lock_with_timeout():
+            if now > expiration:
+                creds = httpx.get(f'http://169.254.170.2{creds_path}').json()
+                aws_access_key_id = creds['AccessKeyId']
+                aws_secret_access_key = creds['SecretAccessKey']
+                aws_session_token = creds['Token']
+                expiration = datetime.datetime.strptime(creds['Expiration'], '%Y-%m-%dT%H:%M:%SZ')
 
         return aws_region, aws_access_key_id, aws_secret_access_key, aws_session_token
 
