@@ -28,6 +28,10 @@ jobs:
             coverage run -m unittest
             coverage xml
             ./cc-test-reporter format-coverage
+      - run:
+          name: Upload coverage
+          command: |
+            set -exu
             ./cc-test-reporter sum-coverage coverage/*.json -p 1
             ./cc-test-reporter upload-coverage
 
