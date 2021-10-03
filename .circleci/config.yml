@@ -13,6 +13,8 @@ jobs:
         command: ['-c', 'mkdir -p /data1 && mkdir -p /data2 && mkdir -p /data3 && mkdir -p /data4 && minio server /data{1...4}']
     steps:
       - checkout
+      - attach_workspace:
+          at: ~/workspace
       - run:
           name: Install dependencies
           command: |
@@ -20,6 +22,10 @@ jobs:
             pip install coverage
             curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
             chmod +x ./cc-test-reporter
+      - persist_to_workspace:
+          root: ./
+          paths:
+            - cc-test-reporter
       - run:
           name: Run tests
           command: |
@@ -28,14 +34,27 @@ jobs:
             coverage run -m unittest
             coverage xml
             ./cc-test-reporter format-coverage
+      - persist_to_workspace:
+          root: ./
+          paths:
+            - coverage/*.json
+  upload-coverage:
+    docker:
+      - image: cimg/base:2021.04
+    steps:
+      - attach_workspace:
+          at: ~/workspace
       - run:
           name: Upload coverage
           command: |
             set -exu
-            ./cc-test-reporter sum-coverage coverage/*.json -p 1
-            ./cc-test-reporter upload-coverage
+            ~/workspace/cc-test-reporter sum-coverage ~/workspace/coverage/*.json -p 1
+            ~/workspace/cc-test-reporter upload-coverage
 
 workflows:
   test:
     jobs:
       - test
+      - upload-coverage:
+          requires:
+            - test
