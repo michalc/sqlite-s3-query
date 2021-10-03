@@ -86,8 +86,8 @@ def sqlite_s3_query(url, get_credentials=lambda now: (
         request_headers = aws_sigv4_headers(
             now, access_key_id, secret_access_key, region, method, to_auth_headers, params,
         )
-        url = f'{scheme}://{netloc}{path}?{urlencode(params)}'
-        with http_client.stream(method, url, headers=request_headers) as response:
+        url = f'{scheme}://{netloc}{path}'
+        with http_client.stream(method, url, params=params, headers=request_headers) as response:
             response.raise_for_status()
             yield response
 

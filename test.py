@@ -190,10 +190,10 @@ class TestSqliteS3Query(unittest.TestCase):
             def client():
                 with httpx.Client() as original_client:
                     class Client():
-                        def stream(self, method, url, headers):
+                        def stream(self, method, url, params, headers):
                             parsed_url = urllib.parse.urlparse(url)
                             url = urllib.parse.urlunparse(parsed_url._replace(netloc='localhost:9001'))
-                            return original_client.stream(method, url, headers=headers + (('host', 'localhost:9000'),))
+                            return original_client.stream(method, url, params=params, headers=headers + (('host', 'localhost:9000'),))
                     yield Client()
             return client()
 
@@ -242,13 +242,13 @@ class TestSqliteS3Query(unittest.TestCase):
                 with httpx.Client() as original_client:
                     class Client():
                         @contextmanager
-                        def stream(self, method, url, headers):
+                        def stream(self, method, url, params, headers):
                             parsed_url = urllib.parse.urlparse(url)
                             url = urllib.parse.urlunparse(parsed_url._replace(netloc='localhost:9001'))
                             range_query = dict(headers).get('range')
                             is_query = range_query and range_query != 'bytes=0-99'
                             with original_client.stream(method, url,
-                                headers=headers + (('host', 'localhost:9000'),)
+                                params=params, headers=headers + (('host', 'localhost:9000'),)
                             ) as response:
                                 chunks = response.iter_bytes()
                                 def iter_bytes(chunk_size=None):
