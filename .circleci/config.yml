@@ -46,7 +46,7 @@ jobs:
             ~/workspace/cc-test-reporter before-build
             coverage run -m unittest
             coverage xml
-            ~/workspace/cc-test-reporter format-coverage
+            ~/workspace/cc-test-reporter format-coverage --output coverage/<< parameters.python-version >>.json
       - persist_to_workspace:
           root: ./
           paths:
