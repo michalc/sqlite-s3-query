@@ -1,6 +1,22 @@
 version: 2.1
 
 jobs:
+  download-test-reporter:
+    docker:
+      - image: cimg/base:2021.04
+    steps:
+      - attach_workspace:
+          at: ~/workspace
+      - run:
+          name: Download test reporter
+          command: |
+            set -exu
+            curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+            chmod +x ./cc-test-reporter
+      - persist_to_workspace:
+          root: ./
+          paths:
+            - cc-test-reporter
   test:
     docker:
       - image: cimg/python:3.7.8
@@ -20,20 +36,14 @@ jobs:
           command: |
             pip install .
             pip install coverage
-            curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
-            chmod +x ./cc-test-reporter
-      - persist_to_workspace:
-          root: ./
-          paths:
-            - cc-test-reporter
       - run:
           name: Run tests
           command: |
             set -exu
-            ./cc-test-reporter before-build
+            ~/workspace/cc-test-reporter before-build
             coverage run -m unittest
             coverage xml
-            ./cc-test-reporter format-coverage
+            ~/workspace/cc-test-reporter format-coverage
       - persist_to_workspace:
           root: ./
           paths:
@@ -54,7 +64,10 @@ jobs:
 workflows:
   test:
     jobs:
-      - test
+      - download-test-reporter
+      - test:
+          requires:
+            - download-test-reporter  
       - upload-coverage:
           requires:
             - test
