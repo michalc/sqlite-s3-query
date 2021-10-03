@@ -23,12 +23,13 @@ jobs:
       - run:
           name: Run tests
           command: |
-            set -xu
+            set -exu
             ./cc-test-reporter before-build
             coverage run -m unittest
-            EXIT_CODE=$?
             coverage xml
-            ./cc-test-reporter after-build --exit-code $EXIT_CODE
+            ./cc-test-reporter format-coverage
+            ./cc-test-reporter sum-coverage coverage/*.json -p 1
+            ./cc-test-reporter upload-coverage
 
 workflows:
   test:
