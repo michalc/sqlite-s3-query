@@ -18,8 +18,11 @@ jobs:
           paths:
             - cc-test-reporter
   test:
+    parameters:
+      python-version:
+        type: string
     docker:
-      - image: cimg/python:3.7.8
+      - image: cimg/python:<< parameters.python-version >>
       - image: minio/minio:RELEASE.2021-08-05T22-01-19Z
         environment:
           MINIO_ACCESS_KEY: AKIAIOSFODNN7EXAMPLE
@@ -68,6 +71,10 @@ workflows:
       - test:
           requires:
             - download-test-reporter  
+          matrix:
+            parameters:
+              python-version:
+                - "3.7.8"
       - upload-coverage:
           requires:
             - test
