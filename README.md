@@ -170,13 +170,14 @@ The location of the libsqlite3 library can be changed by overriding the `get_lib
 
 ```python
 from ctypes import cdll
+from ctypes.util import find_library
 from functools import partial
 from sys import platform
 from sqlite_s3_query import sqlite_s3_query
 
 query_my_db = partial(sqlite_s3_query,
     url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite',
-    get_libsqlite3=lambda: cdll.LoadLibrary({'linux': 'libsqlite3.so.0', 'darwin': 'libsqlite3.dylib'}[platform])
+    get_libsqlite3=lambda: cdll.LoadLibrary(find_library('sqlite3'))
 )
 
 with \

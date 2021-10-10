@@ -1,8 +1,11 @@
 from contextlib import contextmanager
+from ctypes import cdll
+from ctypes.util import find_library
 import datetime
 import functools
 import hashlib
 import hmac
+import os
 import socket
 import sqlite3
 import tempfile
@@ -17,6 +20,13 @@ from sqlite_s3_query import sqlite_s3_query
 
 
 class TestSqliteS3Query(unittest.TestCase):
+
+    def test_sqlite3_installed_on_ci(self):
+        ci = os.environ.get('CI', '')
+        sqlite3_version = os.environ.get('SQLITE3_VERSION', 'default')
+        if ci and sqlite3_version != 'default':
+            libsqlite3 = cdll.LoadLibrary(find_library('sqlite3'))
+            self.assertEqual(libsqlite3.sqlite3_libversion_number(), int(sqlite3_version))
 
     def test_select(self):
         db = get_db([
@@ -144,8 +154,8 @@ class TestSqliteS3Query(unittest.TestCase):
 
     def test_bad_db_second_half(self):
         db = get_db(["CREATE TABLE my_table (my_col_a text, my_col_b text);"] + [
-            "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 5000),
-        ])
+            "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
+        ] * 10)
 
         half_len = int(len(db) / 2)
         db = db[:half_len] + len(db[half_len:]) * b'-'
