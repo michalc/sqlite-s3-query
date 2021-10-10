@@ -1,12 +1,12 @@
 from contextlib import contextmanager
 from ctypes import CFUNCTYPE, POINTER, Structure, pointer, cast, memmove, memset, sizeof, addressof, cdll, byref, string_at, c_char_p, c_int, c_double, c_int64, c_void_p, c_char
+from ctypes.util import find_library
 from functools import partial
 from hashlib import sha256
 import hmac
 from datetime import datetime
 import os
 from re import sub
-from sys import platform
 from time import time
 from urllib.parse import urlencode, urlsplit, quote
 from uuid import uuid4
@@ -21,7 +21,7 @@ def sqlite_s3_query(url, get_credentials=lambda now: (
     os.environ['AWS_SECRET_ACCESS_KEY'],
     os.environ.get('AWS_SESSION_TOKEN'),  # Only needed for temporary credentials
 ), get_http_client=lambda: httpx.Client(),
-   get_libsqlite3=lambda: cdll.LoadLibrary({'linux': 'libsqlite3.so.0', 'darwin': 'libsqlite3.dylib'}[platform])):
+   get_libsqlite3=lambda: cdll.LoadLibrary(find_library('sqlite3'))):
     libsqlite3 = get_libsqlite3()
     libsqlite3.sqlite3_errstr.restype = c_char_p
     libsqlite3.sqlite3_errmsg.restype = c_char_p
