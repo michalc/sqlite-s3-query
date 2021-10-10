@@ -172,7 +172,6 @@ The location of the libsqlite3 library can be changed by overriding the `get_lib
 from ctypes import cdll
 from ctypes.util import find_library
 from functools import partial
-from sys import platform
 from sqlite_s3_query import sqlite_s3_query
 
 query_my_db = partial(sqlite_s3_query,
