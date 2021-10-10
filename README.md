@@ -16,7 +16,7 @@ Inspired by [phiresky's sql.js-httpvfs](https://github.com/phiresky/sql.js-httpv
 pip install sqlite_s3_query
 ```
 
-The libsqlite3 binary library is also required, but this is typically already installed on most systems.
+The libsqlite3 binary library from onwards is also required, but this is typically already installed on most systems. The earliest version of libsqlite3 known to work is 2012-12-12 (3.7.15).
 
 
 ## Usage
