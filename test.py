@@ -144,8 +144,8 @@ class TestSqliteS3Query(unittest.TestCase):
 
     def test_bad_db_second_half(self):
         db = get_db(["CREATE TABLE my_table (my_col_a text, my_col_b text);"] + [
-            "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 5000),
-        ])
+            "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
+        ] * 10)
 
         half_len = int(len(db) / 2)
         db = db[:half_len] + len(db[half_len:]) * b'-'
