@@ -5,7 +5,7 @@ Python context manager to query a SQLite file stored on S3. It uses multiple HTT
 
 All queries using the same instance of the context will query the same version of the database object in S3. This means that a context is roughly equivalent to a REPEATABLE READ transaction, and queries should complete succesfully even if the database is replaced concurrently by another S3 client. Versioning _must_ be enabled on the S3 bucket.
 
-SQL statements that write to the database are not supported.
+SQL statements that write to the database are not supported. If you're looking for a way to write to a SQLite database in S3, try [sqlite-s3vfs](https://github.com/uktrade/sqlite-s3vfs).
 
 Inspired by [phiresky's sql.js-httpvfs](https://github.com/phiresky/sql.js-httpvfs), and [dacort's Stack Overflow answer](https://stackoverflow.com/a/59434097/1319998).
 
