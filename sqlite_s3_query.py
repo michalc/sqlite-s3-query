@@ -144,7 +144,7 @@ def sqlite_s3_query(url, get_credentials=lambda now: (
 
         try:
             version_id = head_headers['x-amz-version-id']
-        except Exception:
+        except KeyError:
             raise Exception('The bucket must have versioning enabled')
 
         size = int(head_headers['content-length'])
