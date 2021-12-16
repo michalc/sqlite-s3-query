@@ -8,7 +8,7 @@ def long_description():
 
 setuptools.setup(
     name='sqlite-s3-query',
-    version='0.0.45',
+    version='0.0.46',
     author='Michal Charemza',
     author_email='michal@charemza.name',
     description='Python context manager to query a SQLite file stored on S3',
