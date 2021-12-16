@@ -35,7 +35,7 @@ class TestSqliteS3Query(unittest.TestCase):
             "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
         ])
 
-        put_object('my-bucket', 'my.db', db)
+        put_object_with_versioning('my-bucket', 'my.db', db)
 
         with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
             'us-east-1',
@@ -55,7 +55,7 @@ class TestSqliteS3Query(unittest.TestCase):
             "INSERT INTO my_table VALUES ('a','b'),('c','d')",
         ])
 
-        put_object('my-bucket', 'my.db', db)
+        put_object_with_versioning('my-bucket', 'my.db', db)
 
         with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
             'us-east-1',
@@ -75,7 +75,7 @@ class TestSqliteS3Query(unittest.TestCase):
             "INSERT INTO my_table VALUES ('a','b'),('c','d')",
         ])
 
-        put_object('my-bucket', 'my.db', db)
+        put_object_with_versioning('my-bucket', 'my.db', db)
 
         query_my_db = functools.partial(sqlite_s3_query,
             url='http://localhost:9000/my-bucket/my.db',
@@ -96,7 +96,7 @@ class TestSqliteS3Query(unittest.TestCase):
     def test_time_and_non_python_identifier(self):
         db = get_db(["CREATE TABLE my_table (my_col_a text, my_col_b text);"])
 
-        put_object('my-bucket', 'my.db', db)
+        put_object_with_versioning('my-bucket', 'my.db', db)
 
         with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
             'us-east-1',
@@ -114,7 +114,7 @@ class TestSqliteS3Query(unittest.TestCase):
     def test_non_existant_table(self):
         db = get_db(["CREATE TABLE my_table (my_col_a text, my_col_b text);"])
 
-        put_object('my-bucket', 'my.db', db)
+        put_object_with_versioning('my-bucket', 'my.db', db)
 
         with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
             'us-east-1',
@@ -128,7 +128,7 @@ class TestSqliteS3Query(unittest.TestCase):
     def test_empty_object(self):
         db = get_db(["CREATE TABLE my_table (my_col_a text, my_col_b text);"])
 
-        put_object('my-bucket', 'my.db', b'')
+        put_object_with_versioning('my-bucket', 'my.db', b'')
 
         with self.assertRaises(Exception):
             sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
@@ -141,7 +141,7 @@ class TestSqliteS3Query(unittest.TestCase):
     def test_bad_db_header(self):
         db = get_db(["CREATE TABLE my_table (my_col_a text, my_col_b text);"])
 
-        put_object('my-bucket', 'my.db', b'*' * 100)
+        put_object_with_versioning('my-bucket', 'my.db', b'*' * 100)
 
         with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
             'us-east-1',
@@ -159,7 +159,7 @@ class TestSqliteS3Query(unittest.TestCase):
 
         half_len = int(len(db) / 2)
         db = db[:half_len] + len(db[half_len:]) * b'-'
-        put_object('my-bucket', 'my.db', db)
+        put_object_with_versioning('my-bucket', 'my.db', db)
 
         with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
             'us-east-1',
@@ -214,7 +214,7 @@ class TestSqliteS3Query(unittest.TestCase):
                 "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
             ])
 
-            put_object('my-bucket', 'my.db', db)
+            put_object_with_versioning('my-bucket', 'my.db', db)
 
             with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
                 'us-east-1',
@@ -277,7 +277,7 @@ class TestSqliteS3Query(unittest.TestCase):
                 "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
             ])
 
-            put_object('my-bucket', 'my.db', db)
+            put_object_with_versioning('my-bucket', 'my.db', db)
 
             with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
                 'us-east-1',
@@ -326,7 +326,7 @@ class TestSqliteS3Query(unittest.TestCase):
                 "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
             ])
 
-            put_object('my-bucket', 'my.db', db)
+            put_object_with_versioning('my-bucket', 'my.db', db)
 
         with self.assertRaises(Exception):
             sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
@@ -336,7 +336,7 @@ class TestSqliteS3Query(unittest.TestCase):
                 None,
             ), get_http_client=get_http_client).__enter__()
 
-def put_object(bucket, key, content):
+def put_object_with_versioning(bucket, key, content):
     create_bucket(bucket)
     enable_versioning(bucket)
 
