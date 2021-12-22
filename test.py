@@ -138,7 +138,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
         )) as query:
-            with self.assertRaises(Exception):
+            with self.assertRaisesRegex(Exception, 'no such table: non_table'):
                 query("SELECT * FROM non_table").__enter__()
 
     def test_empty_object(self):
@@ -146,7 +146,7 @@ class TestSqliteS3Query(unittest.TestCase):
 
         put_object_with_versioning('my-bucket', 'my.db', b'')
 
-        with self.assertRaises(Exception):
+        with self.assertRaisesRegex(Exception, 'disk I/O error'):
             sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
                 'us-east-1',
                 'AKIAIOSFODNN7EXAMPLE',
@@ -165,7 +165,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
         )) as query:
-            with self.assertRaises(Exception):
+            with self.assertRaisesRegex(Exception, 'disk I/O error'):
                 query("SELECT * FROM non_table").__enter__()
 
     def test_bad_db_second_half(self):
@@ -183,7 +183,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
         )) as query:
-            with self.assertRaises(Exception):
+            with self.assertRaisesRegex(Exception, 'database disk image is malformed'):
                 with query("SELECT * FROM my_table") as (columns, rows):
                     list(rows)
 
@@ -328,29 +328,29 @@ class TestSqliteS3Query(unittest.TestCase):
             def client():
                 with httpx.Client() as original_client:
                     class Client():
-                        def stream(self, method, url, headers):
+                        def stream(self, method, url, headers, params):
                             parsed_url = urllib.parse.urlparse(url)
                             url = urllib.parse.urlunparse(parsed_url._replace(netloc='localhost:9001'))
                             return original_client.stream(method, url, headers=headers + (('host', 'localhost:9000'),))
                     yield Client()
             return client()
 
+        db = get_db([
+            "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+        ] + [
+            "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
+        ])
+
+        put_object_with_versioning('my-bucket', 'my.db', db)
+
         with server() as server_sock:
-            db = get_db([
-                "CREATE TABLE my_table (my_col_a text, my_col_b text);",
-            ] + [
-                "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
-            ])
-
-            put_object_with_versioning('my-bucket', 'my.db', db)
-
-        with self.assertRaises(Exception):
-            sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
-                'us-east-1',
-                'AKIAIOSFODNN7EXAMPLE',
-                'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-                None,
-            ), get_http_client=get_http_client).__enter__()
+            with self.assertRaisesRegex(Exception, 'Connection'):
+                sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
+                    'us-east-1',
+                    'AKIAIOSFODNN7EXAMPLE',
+                    'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+                    None,
+                ), get_http_client=get_http_client).__enter__()
 
 def put_object_without_versioning(bucket, key, content):
     create_bucket(bucket)
