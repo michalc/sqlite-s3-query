@@ -1,7 +1,7 @@
 # sqlite-s3-query [![CircleCI](https://circleci.com/gh/michalc/sqlite-s3-query.svg?style=shield)](https://circleci.com/gh/michalc/sqlite-s3-query) [![Test Coverage](https://api.codeclimate.com/v1/badges/8e6c25c35521d6b338fa/test_coverage)](https://codeclimate.com/github/michalc/sqlite-s3-query/test_coverage)
 
 
-Python context manager to query a SQLite file stored on S3. It uses multiple HTTP range requests per query to avoid downloading the entire file, and so is suitable for large databases.
+Python context managers to query a SQLite file stored on S3. It uses multiple HTTP range requests per query to avoid downloading the entire file, and so is suitable for large databases.
 
 All queries using the same instance of the context will query the same version of the database object in S3. This means that a context is roughly equivalent to a REPEATABLE READ transaction, and queries should complete succesfully even if the database is replaced concurrently by another S3 client. Versioning _must_ be enabled on the S3 bucket.
 
@@ -21,9 +21,9 @@ The libsqlite3 binary library is also required, but this is typically already in
 
 ## Usage
 
-```python
-from sqlite_s3_query import sqlite_s3_query
+For single-statement queries, the `sqlite_s3_query` function can be used.
 
+```python
 with sqlite_s3_query(url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite') as query:
 
     with query('SELECT * FROM my_table WHERE my_column = ?', params=('my-value',)) as (columns, rows):
@@ -32,6 +32,20 @@ with sqlite_s3_query(url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sql
 
     # Exactly the same results, even if the object in S3 was replaced
     with query('SELECT * FROM my_table WHERE my_column = ?', params=('my-value',)) as (columns, rows):
+        for row in rows:
+            print(row)
+```
+
+For multi-statement queries, the `sqlite_s3_query_multi` function can be used.
+
+```python
+from sqlite_s3_query import sqlite_s3_query_multi
+
+with sqlite_s3_query_multi(url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite') as query:
+    for (column, rows) in query('''
+            SELECT * FROM my_table_a WHERE my_column_a = ?;
+            SELECT * FROM my_table_b WHERE my_column_b = ?;
+    ''', params=('my-value-a','my-value-b')):
         for row in rows:
             print(row)
 ```
