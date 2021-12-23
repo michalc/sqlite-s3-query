@@ -65,6 +65,13 @@ class TestSqliteS3Query(unittest.TestCase):
         self.assertEqual(rows, [('some-text-a',)] * 500)
 
     def test_select_multi(self):
+        db = get_db([
+            "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+        ] + [
+            "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
+        ])
+        put_object_with_versioning('my-bucket', 'my.db', db)
+        
         with sqlite_s3_query_multi('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
             'us-east-1',
             'AKIAIOSFODNN7EXAMPLE',
