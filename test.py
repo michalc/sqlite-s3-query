@@ -16,7 +16,7 @@ import uuid
 
 import httpx
 
-from sqlite_s3_query import sqlite_s3_query
+from sqlite_s3_query import sqlite_s3_query, sqlite_s3_query_multi
 
 
 class TestSqliteS3Query(unittest.TestCase):
@@ -63,6 +63,78 @@ class TestSqliteS3Query(unittest.TestCase):
                 rows = list(rows)
 
         self.assertEqual(rows, [('some-text-a',)] * 500)
+
+    def test_select_multi(self):
+        with sqlite_s3_query_multi('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
+            'us-east-1',
+            'AKIAIOSFODNN7EXAMPLE',
+            'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            None,
+        )) as query:
+            rows_list = [
+                list(rows)
+                for (columns, rows) in query('''
+                    SELECT my_col_a FROM my_table;
+                    SELECT my_col_a FROM my_table LIMIT 10;
+                ''')
+            ]
+
+        self.assertEqual(rows_list, [[('some-text-a',)] * 500, [('some-text-a',)] * 10])
+
+        with self.assertRaisesRegex(Exception, 'Just after creating context'):
+            with sqlite_s3_query_multi('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
+                'us-east-1',
+                'AKIAIOSFODNN7EXAMPLE',
+                'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+                None,
+            )) as query:
+                raise Exception('Just after creating context')
+
+        with self.assertRaisesRegex(Exception, 'Just after iterating statements'):
+            with sqlite_s3_query_multi('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
+                'us-east-1',
+                'AKIAIOSFODNN7EXAMPLE',
+                'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+                None,
+            )) as query:
+                for (columns, rows) in query('''
+                    SELECT my_col_a FROM my_table;
+                    SELECT my_col_a FROM my_table LIMIT 10;
+                '''):
+                    raise Exception('Just after iterating statements')
+
+        with self.assertRaisesRegex(Exception, 'Just after iterating first row'):
+            with sqlite_s3_query_multi('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
+                'us-east-1',
+                'AKIAIOSFODNN7EXAMPLE',
+                'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+                None,
+            )) as query:
+                for (columns, rows) in query('''
+                    SELECT my_col_a FROM my_table;
+                    SELECT my_col_a FROM my_table LIMIT 10;
+                '''):
+                    for row in rows:
+                        raise Exception('Just after iterating first row')
+
+        with self.assertRaisesRegex(Exception, 'Multiple open statements'):
+            with sqlite_s3_query_multi('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
+                'us-east-1',
+                'AKIAIOSFODNN7EXAMPLE',
+                'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+                None,
+            )) as query:
+                it = iter(query('''
+                    SELECT my_col_a FROM my_table;
+                    SELECT my_col_a FROM my_table LIMIT 10;
+                '''))
+                columns_1, rows_1 = next(it)
+                for row in rows_1:
+                    break
+
+                columns_2, rows_2 = next(it)
+                for row in rows_2:
+                    raise Exception('Multiple open statements')
 
     def test_placeholder(self):
         db = get_db([

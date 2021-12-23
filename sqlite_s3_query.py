@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from ctypes import CFUNCTYPE, POINTER, Structure, pointer, cast, memmove, memset, sizeof, addressof, cdll, byref, string_at, c_char_p, c_int, c_double, c_int64, c_void_p, c_char
+from ctypes import CFUNCTYPE, POINTER, Structure, create_string_buffer, pointer, cast, memmove, memset, sizeof, addressof, cdll, byref, string_at, c_char_p, c_int, c_double, c_int64, c_void_p, c_char
 from ctypes.util import find_library
 from functools import partial
 from hashlib import sha256
@@ -15,7 +15,7 @@ import httpx
 
 
 @contextmanager
-def sqlite_s3_query(url, get_credentials=lambda now: (
+def sqlite_s3_query_multi(url, get_credentials=lambda now: (
     os.environ['AWS_REGION'],
     os.environ['AWS_ACCESS_KEY_ID'],
     os.environ['AWS_SECRET_ACCESS_KEY'],
@@ -288,8 +288,61 @@ def sqlite_s3_query(url, get_credentials=lambda now: (
             run_with_db(db, libsqlite3.sqlite3_finalize, pp_stmt)
 
     @contextmanager
-    def query(db, sql, params=()):
-        with get_pp_stmt(db, sql) as pp_stmt:
+    def get_pp_stmt_getter(db):
+        # The purpose of this context manager is to make sure we finalize statements before
+        # attempting to close the database, including in the case of unfinished interation
+
+        # Operations are O(N) on a list, but usually there are only a few in-flight statements
+        statements = []
+
+        def finalize(pp_stmt):
+            # In case there are errors, don't attempt to re-finalize the same statement
+            statements.remove(pp_stmt)
+            try:
+                run_with_db(db, libsqlite3.sqlite3_finalize, pp_stmt)
+            except:
+                # The only case found where this errored is when we've already had an error due to
+                # a malformed disk image, which will already bubble up to client code
+                pass
+
+        def get_pp_stmts(sql):
+            p_encoded = POINTER(c_char)(create_string_buffer(sql.encode()))
+            pp_stmt = c_void_p()
+
+            while True:
+                run_with_db(db, libsqlite3.sqlite3_prepare_v2, db, p_encoded, -1, byref(pp_stmt), byref(p_encoded))
+                if not pp_stmt:
+                    break
+
+                statements.append(pp_stmt)
+
+                try:
+                    yield pp_stmt
+                finally:
+                    if pp_stmt in statements:
+                        finalize(pp_stmt)
+
+        try:
+            yield get_pp_stmts
+        finally:
+            for pp_stmt in list(statements):
+                finalize(pp_stmt)
+
+    def rows(pp_stmt, columns):
+        while True:
+            res = libsqlite3.sqlite3_step(pp_stmt)
+            if res == SQLITE_DONE:
+                break
+            if res != SQLITE_ROW:
+                raise Exception(libsqlite3.sqlite3_errstr(res).decode())
+
+            yield tuple(
+                extract[libsqlite3.sqlite3_column_type(pp_stmt, i)](pp_stmt, i)
+                for i in range(0, len(columns))
+            )
+
+    def query(db, get_pp_stmts, sql, params=()):
+        for pp_stmt in get_pp_stmts(sql):
             for i, param in enumerate(params):
                 run_with_db(db, bind[type(param)], pp_stmt, i + 1, param)
 
@@ -298,24 +351,36 @@ def sqlite_s3_query(url, get_credentials=lambda now: (
                 for i in range(0, libsqlite3.sqlite3_column_count(pp_stmt))
             )
 
-            def rows():
-                while True:
-                    res = libsqlite3.sqlite3_step(pp_stmt)
-                    if res == SQLITE_DONE:
-                        break
-                    if res != SQLITE_ROW:
-                        raise Exception(libsqlite3.sqlite3_errstr(res).decode())
-
-                    yield tuple(
-                        extract[libsqlite3.sqlite3_column_type(pp_stmt, i)](pp_stmt, i)
-                        for i in range(0, len(columns))
-                    )
-
-            yield columns, rows()
+            yield columns, rows(pp_stmt, columns)
 
     with \
             get_http_client() as http_client, \
             get_vfs(http_client) as vfs, \
-            get_db(vfs) as db:
+            get_db(vfs) as db, \
+            get_pp_stmt_getter(db) as get_pp_stmts:
 
-        yield partial(query, db)
+        yield partial(query, db, get_pp_stmts)
+
+
+@contextmanager
+def sqlite_s3_query(url, get_credentials=lambda now: (
+    os.environ['AWS_REGION'],
+    os.environ['AWS_ACCESS_KEY_ID'],
+    os.environ['AWS_SECRET_ACCESS_KEY'],
+    os.environ.get('AWS_SESSION_TOKEN'),  # Only needed for temporary credentials
+), get_http_client=lambda: httpx.Client(),
+   get_libsqlite3=lambda: cdll.LoadLibrary(find_library('sqlite3'))):
+
+    @contextmanager
+    def query(query_multi, sql, params=()):
+        for columns, rows in query_multi(sql, params):
+            yield columns, rows
+            break
+
+    with sqlite_s3_query_multi(url,
+            get_credentials=get_credentials,
+            get_http_client=get_http_client,
+            get_libsqlite3=get_libsqlite3,
+    ) as query_multi:
+
+        yield partial(query, query_multi)
