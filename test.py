@@ -71,7 +71,7 @@ class TestSqliteS3Query(unittest.TestCase):
             "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
         ])
         put_object_with_versioning('my-bucket', 'my.db', db)
-        
+
         with sqlite_s3_query_multi('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
             'us-east-1',
             'AKIAIOSFODNN7EXAMPLE',
@@ -142,6 +142,22 @@ class TestSqliteS3Query(unittest.TestCase):
                 columns_2, rows_2 = next(it)
                 for row in rows_2:
                     raise Exception('Multiple open statements')
+
+        with sqlite_s3_query_multi('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
+            'us-east-1',
+            'AKIAIOSFODNN7EXAMPLE',
+            'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            None,
+        )) as query:
+            # Checking we don't need to iterate over all the statements
+            for columns, rows in query('''
+                SELECT my_col_a FROM my_table;
+                SELECT my_col_a FROM my_table LIMIT 10;
+            '''):
+                pass
+
+            rows_list = list(rows)
+            self.assertEqual(rows_list, [('some-text-a',)] * 10)
 
     def test_placeholder(self):
         db = get_db([
