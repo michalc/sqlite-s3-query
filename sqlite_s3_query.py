@@ -279,15 +279,6 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
             run_with_db(db, libsqlite3.sqlite3_close, db)
 
     @contextmanager
-    def get_pp_stmt(db, sql):
-        pp_stmt = c_void_p()
-        run_with_db(db, libsqlite3.sqlite3_prepare_v2, db, sql.encode() + b'\0', -1, byref(pp_stmt), None)
-        try:
-            yield pp_stmt
-        finally:
-            run_with_db(db, libsqlite3.sqlite3_finalize, pp_stmt)
-
-    @contextmanager
     def get_pp_stmt_getter(db):
         # The purpose of this context manager is to make sure we finalize statements before
         # attempting to close the database, including in the case of unfinished interation
