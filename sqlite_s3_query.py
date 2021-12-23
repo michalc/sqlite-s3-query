@@ -295,7 +295,10 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
         # Operations are O(N) on a list, but usually there are only a few in-flight statements
         statements = []
 
-        def finalize(pp_stmt):
+        def finalize_stmt(pp_stmt):
+            if pp_stmt not in statements:
+                return
+
             # In case there are errors, don't attempt to re-finalize the same statement
             statements.remove(pp_stmt)
             try:
@@ -307,41 +310,39 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
 
         def get_pp_stmts(sql):
             p_encoded = POINTER(c_char)(create_string_buffer(sql.encode()))
-            pp_stmt = c_void_p()
 
             while True:
+                pp_stmt = c_void_p()
                 run_with_db(db, libsqlite3.sqlite3_prepare_v2, db, p_encoded, -1, byref(pp_stmt), byref(p_encoded))
                 if not pp_stmt:
                     break
 
                 statements.append(pp_stmt)
-
-                try:
-                    yield pp_stmt
-                finally:
-                    if pp_stmt in statements:
-                        finalize(pp_stmt)
+                yield pp_stmt
 
         try:
-            yield get_pp_stmts
+            yield (get_pp_stmts, finalize_stmt)
         finally:
             for pp_stmt in list(statements):
-                finalize(pp_stmt)
+                finalize_stmt(pp_stmt)
 
-    def rows(pp_stmt, columns):
-        while True:
-            res = libsqlite3.sqlite3_step(pp_stmt)
-            if res == SQLITE_DONE:
-                break
-            if res != SQLITE_ROW:
-                raise Exception(libsqlite3.sqlite3_errstr(res).decode())
+    def rows(finalize_stmt, pp_stmt, columns):
+        try:
+            while True:
+                res = libsqlite3.sqlite3_step(pp_stmt)
+                if res == SQLITE_DONE:
+                    break
+                if res != SQLITE_ROW:
+                    raise Exception(libsqlite3.sqlite3_errstr(res).decode())
 
-            yield tuple(
-                extract[libsqlite3.sqlite3_column_type(pp_stmt, i)](pp_stmt, i)
-                for i in range(0, len(columns))
-            )
+                yield tuple(
+                    extract[libsqlite3.sqlite3_column_type(pp_stmt, i)](pp_stmt, i)
+                    for i in range(0, len(columns))
+                )
+        finally:
+            finalize_stmt(pp_stmt)
 
-    def query(db, get_pp_stmts, sql, params=()):
+    def query(db, get_pp_stmts, finalize_stmt, sql, params=()):
         for pp_stmt in get_pp_stmts(sql):
             for i, param in enumerate(params):
                 run_with_db(db, bind[type(param)], pp_stmt, i + 1, param)
@@ -351,15 +352,15 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
                 for i in range(0, libsqlite3.sqlite3_column_count(pp_stmt))
             )
 
-            yield columns, rows(pp_stmt, columns)
+            yield columns, rows(finalize_stmt, pp_stmt, columns)
 
     with \
             get_http_client() as http_client, \
             get_vfs(http_client) as vfs, \
             get_db(vfs) as db, \
-            get_pp_stmt_getter(db) as get_pp_stmts:
+            get_pp_stmt_getter(db) as (get_pp_stmts, finalize_stmt):
 
-        yield partial(query, db, get_pp_stmts)
+        yield partial(query, db, get_pp_stmts, finalize_stmt)
 
 
 @contextmanager
