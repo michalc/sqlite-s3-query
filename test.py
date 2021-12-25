@@ -397,6 +397,58 @@ class TestSqliteS3Query(unittest.TestCase):
             self.assertEqual(rows, [('some-text-a',)] * 500)
             self.assertEqual(num_connections, 1)
 
+    def test_streaming(self):
+        rows_count = 0
+        rows_yielded_at_request = []
+
+        def get_http_client():
+            @contextmanager
+            def client():
+                with httpx.Client() as original_client:
+                    class Client():
+                        @contextmanager
+                        def stream(self, method, url, params, headers):
+                            rows_yielded_at_request.append(
+                                (rows_count, dict(headers).get('range'))
+                            )
+                            with original_client.stream(method, url,
+                                params=params, headers=headers
+                            ) as response:
+                                yield response
+                    yield Client()
+            return client()
+
+        db = get_db([
+            "PRAGMA page_size = 4096;",
+            "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+        ] + [
+            "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
+        ])
+
+        put_object_with_versioning('my-bucket', 'my.db', db)
+
+        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
+            'us-east-1',
+            'AKIAIOSFODNN7EXAMPLE',
+            'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            None,
+        ), get_http_client=get_http_client) as query:
+            with query('SELECT my_col_a FROM my_table') as (cols, rows):
+                for row in rows:
+                    rows_count += 1
+
+        self.assertEqual(rows_yielded_at_request, [
+            (0, None),
+            (0, 'bytes=0-99'),
+            (0, 'bytes=0-4095'),
+            (0, 'bytes=24-39'),
+            (0, 'bytes=4096-8191'),
+            (0, 'bytes=8192-12287'),
+            (140, 'bytes=12288-16383'),
+            (276, 'bytes=16384-20479'),
+            (412, 'bytes=20480-24575'),
+        ])
+
     def test_too_many_bytes(self):
         @contextmanager
         def server():
