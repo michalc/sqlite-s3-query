@@ -449,6 +449,33 @@ class TestSqliteS3Query(unittest.TestCase):
             (412, 'bytes=20480-24575'),
         ])
 
+        # Documenting the difference with the above and a query that is not streaming. In this
+        # case, a query with an ORDER BY on a column that does not have an index requires SQLite to
+        # fetch all the pages before yielding any rows to client code
+        rows_count = 0
+        rows_yielded_at_request.clear()
+        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
+            'us-east-1',
+            'AKIAIOSFODNN7EXAMPLE',
+            'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            None,
+        ), get_http_client=get_http_client) as query:
+            with query('SELECT my_col_a FROM my_table ORDER BY my_col_a') as (cols, rows):
+                for row in rows:
+                    rows_count += 1
+
+        self.assertEqual(rows_yielded_at_request, [
+            (0, None),
+            (0, 'bytes=0-99'),
+            (0, 'bytes=0-4095'),
+            (0, 'bytes=24-39'),
+            (0, 'bytes=4096-8191'),
+            (0, 'bytes=8192-12287'),
+            (0, 'bytes=12288-16383'),
+            (0, 'bytes=16384-20479'),
+            (0, 'bytes=20480-24575'),
+        ])
+
     def test_too_many_bytes(self):
         @contextmanager
         def server():
