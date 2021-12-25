@@ -15,7 +15,7 @@ import httpx
 
 
 @contextmanager
-def sqlite_s3_query_multi(url, get_credentials=lambda now: (
+def _sqlite_s3_query_base(url, get_credentials=lambda now: (
     os.environ['AWS_REGION'],
     os.environ['AWS_ACCESS_KEY_ID'],
     os.environ['AWS_SECRET_ACCESS_KEY'],
@@ -286,6 +286,11 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
         # Operations are O(N) on a list, but usually there are only a few in-flight statements
         statements = []
 
+        def get_pp_stmt(pp_stmt):
+            if pp_stmt not in statements:
+                raise Exception('Attempting to use finalized statement')
+            return pp_stmt
+
         def finalize_stmt(pp_stmt):
             if pp_stmt not in statements:
                 return
@@ -309,17 +314,18 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
                     break
 
                 statements.append(pp_stmt)
-                yield pp_stmt
+                yield partial(get_pp_stmt, pp_stmt), partial(finalize_stmt, pp_stmt)
 
         try:
-            yield (get_pp_stmts, finalize_stmt)
+            yield get_pp_stmts
         finally:
             for pp_stmt in list(statements):
                 finalize_stmt(pp_stmt)
 
-    def rows(finalize_stmt, pp_stmt, columns):
+    def rows(get_pp_stmt, finalize_stmt, columns):
         try:
             while True:
+                pp_stmt = get_pp_stmt()
                 res = libsqlite3.sqlite3_step(pp_stmt)
                 if res == SQLITE_DONE:
                     break
@@ -331,10 +337,11 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
                     for i in range(0, len(columns))
                 )
         finally:
-            finalize_stmt(pp_stmt)
+            finalize_stmt()
 
-    def query(db, get_pp_stmts, finalize_stmt, sql, params=()):
-        for pp_stmt in get_pp_stmts(sql):
+    def query(db, get_pp_stmts, sql, params=()):
+        for get_pp_stmt, finalize_stmt in get_pp_stmts(sql):
+            pp_stmt = get_pp_stmt()
             for i, param in enumerate(params):
                 run_with_db(db, bind[type(param)], pp_stmt, i + 1, param)
 
@@ -343,15 +350,37 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
                 for i in range(0, libsqlite3.sqlite3_column_count(pp_stmt))
             )
 
-            yield columns, rows(finalize_stmt, pp_stmt, columns)
+            yield columns, rows(get_pp_stmt, finalize_stmt, columns), finalize_stmt
 
     with \
             get_http_client() as http_client, \
             get_vfs(http_client) as vfs, \
             get_db(vfs) as db, \
-            get_pp_stmt_getter(db) as (get_pp_stmts, finalize_stmt):
+            get_pp_stmt_getter(db) as get_pp_stmts:
 
-        yield partial(query, db, get_pp_stmts, finalize_stmt)
+        yield partial(query, db, get_pp_stmts)
+
+
+@contextmanager
+def sqlite_s3_query_multi(url, get_credentials=lambda now: (
+    os.environ['AWS_REGION'],
+    os.environ['AWS_ACCESS_KEY_ID'],
+    os.environ['AWS_SECRET_ACCESS_KEY'],
+    os.environ.get('AWS_SESSION_TOKEN'),  # Only needed for temporary credentials
+), get_http_client=lambda: httpx.Client(),
+   get_libsqlite3=lambda: cdll.LoadLibrary(find_library('sqlite3'))):
+
+    def query(query_base, sql, params=()):
+        for columns, rows, _ in query_base(sql, params):
+            yield columns, rows
+
+    with _sqlite_s3_query_base(url,
+            get_credentials=get_credentials,
+            get_http_client=get_http_client,
+            get_libsqlite3=get_libsqlite3,
+    ) as query_base:
+
+        yield partial(query, query_base)
 
 
 @contextmanager
@@ -364,15 +393,18 @@ def sqlite_s3_query(url, get_credentials=lambda now: (
    get_libsqlite3=lambda: cdll.LoadLibrary(find_library('sqlite3'))):
 
     @contextmanager
-    def query(query_multi, sql, params=()):
-        for columns, rows in query_multi(sql, params):
-            yield columns, rows
+    def query(query_base, sql, params=()):
+        for columns, rows, finalize_stmt in query_base(sql, params):
+            try:
+                yield columns, rows
+            finally:
+                finalize_stmt()
             break
 
-    with sqlite_s3_query_multi(url,
+    with _sqlite_s3_query_base(url,
             get_credentials=get_credentials,
             get_http_client=get_http_client,
             get_libsqlite3=get_libsqlite3,
-    ) as query_multi:
+    ) as query_base:
 
-        yield partial(query, query_multi)
+        yield partial(query, query_base)
