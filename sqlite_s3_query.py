@@ -283,20 +283,21 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
         # The purpose of this context manager is to make sure we finalize statements before
         # attempting to close the database, including in the case of unfinished interation
 
-        # Operations are O(N) on a list, but usually there are only a few in-flight statements
-        statements = []
+        statements = {}
 
-        def get_pp_stmt(pp_stmt):
-            if pp_stmt not in statements:
-                raise Exception('Attempting to use finalized statement')
-            return pp_stmt
+        def get_pp_stmt(statement):
+            try:
+                return statements[statement]
+            except KeyError:
+                raise Exception('Attempting to use finalized statement') from None
 
-        def finalize_stmt(pp_stmt):
-            if pp_stmt not in statements:
+        def finalize(statement):
+            # In case there are errors, don't attempt to re-finalize the same statement
+            try:
+                pp_stmt = statements.pop(statement)
+            except KeyError:
                 return
 
-            # In case there are errors, don't attempt to re-finalize the same statement
-            statements.remove(pp_stmt)
             try:
                 run_with_db(db, libsqlite3.sqlite3_finalize, pp_stmt)
             except:
@@ -313,14 +314,17 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
                 if not pp_stmt:
                     break
 
-                statements.append(pp_stmt)
-                yield partial(get_pp_stmt, pp_stmt), partial(finalize_stmt, pp_stmt)
+                # c_void_p is not hashable, and there is a theoretical possibility that multiple
+                # exist at the same time pointing to the same memory, so use a plain object instead
+                statement = object()
+                statements[statement] = pp_stmt
+                yield partial(get_pp_stmt, statement), partial(finalize, statement)
 
         try:
             yield get_pp_stmts
         finally:
-            for pp_stmt in list(statements):
-                finalize_stmt(pp_stmt)
+            for statement in statements.copy().keys():
+                finalize(statement)
 
     def rows(get_pp_stmt, finalize_stmt, columns):
         try:
