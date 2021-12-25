@@ -64,6 +64,42 @@ class TestSqliteS3Query(unittest.TestCase):
 
         self.assertEqual(rows, [('some-text-a',)] * 500)
 
+        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
+            'us-east-1',
+            'AKIAIOSFODNN7EXAMPLE',
+            'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            None,
+        )) as query:
+            with \
+                    query('SELECT my_col_a FROM my_table') as (columns_a, rows_a), \
+                    query('SELECT my_col_b FROM my_table') as (columns_b, rows_b):
+
+                rows = [
+                    (next(rows_a)[0], next(rows_b)[0])
+                    for i in range(0, 500)
+                ]
+
+        self.assertEqual(rows, [('some-text-a','some-text-b')] * 500)
+
+        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
+            'us-east-1',
+            'AKIAIOSFODNN7EXAMPLE',
+            'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            None,
+        )) as query:
+            db = get_db([
+                "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+            ] + [
+                "INSERT INTO my_table VALUES " + ','.join(["('some-new-a', 'some-new-b')"] * 500),
+            ])
+
+            put_object_with_versioning('my-bucket', 'my.db', db)
+
+            with query('SELECT my_col_a FROM my_table') as (columns, rows):
+                rows = list(rows)
+
+        self.assertEqual(rows, [('some-text-a',)] * 500)
+
         with self.assertRaisesRegex(Exception, 'Attempting to use finalized statement'):
             with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
                 'us-east-1',
