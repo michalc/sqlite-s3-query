@@ -24,6 +24,8 @@ The libsqlite3 binary library is also required, but this is typically already in
 For single-statement queries, the `sqlite_s3_query` function can be used.
 
 ```python
+from sqlite_s3_query import sqlite_s3_query
+
 with sqlite_s3_query(url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite') as query:
 
     with query('SELECT * FROM my_table WHERE my_column = ?', params=('my-value',)) as (columns, rows):
