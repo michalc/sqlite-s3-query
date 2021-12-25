@@ -64,6 +64,29 @@ class TestSqliteS3Query(unittest.TestCase):
 
         self.assertEqual(rows, [('some-text-a',)] * 500)
 
+        with self.assertRaisesRegex(Exception, 'Attempting to use finalized statement'):
+            with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
+                'us-east-1',
+                'AKIAIOSFODNN7EXAMPLE',
+                'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+                None,
+            )) as query:
+                with query('SELECT my_col_a FROM my_table') as (columns, rows):
+                    for row in rows:
+                        break
+                next(rows)
+
+        with self.assertRaisesRegex(Exception, 'Attempting to use finalized statement'):
+            with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
+                'us-east-1',
+                'AKIAIOSFODNN7EXAMPLE',
+                'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+                None,
+            )) as query:
+                with query('SELECT my_col_a FROM my_table') as (columns, rows):
+                    pass
+                next(rows)
+
     def test_select_multi(self):
         db = get_db([
             "CREATE TABLE my_table (my_col_a text, my_col_b text);",
