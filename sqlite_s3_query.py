@@ -61,8 +61,8 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
         5: lambda pp_stmt, i: None,
     }
 
-    vfs_name = 's3-' + str(uuid4())
-    file_name = 's3-' + str(uuid4())
+    vfs_name = b's3-' + str(uuid4()).encode() + b'\0'
+    file_name = b's3-' + str(uuid4()).encode() + b'\0'
     body_hash = sha256(b'').hexdigest()
     scheme, netloc, path, _, _ = urlsplit(url)
 
@@ -216,7 +216,7 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
 
         x_full_pathname_type = CFUNCTYPE(c_int, c_void_p, c_char_p, c_int, POINTER(c_char))
         def x_full_pathname(p_vfs, z_name, n_out, z_out):
-            memmove(z_out, file_name.encode() + b'\0', len(file_name) + 1)
+            memmove(z_out, file_name, len(file_name))
             return SQLITE_OK
 
         x_current_time_type = CFUNCTYPE(c_int, c_void_p, POINTER(c_double))
@@ -247,7 +247,7 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
             ('sz_os_file', c_int, sizeof(file)),
             ('mx_pathname', c_int, 1024),
             ('p_next', c_void_p, None),
-            ('z_name', c_char_p, vfs_name.encode() + b'\0'),
+            ('z_name', c_char_p, vfs_name),
             ('p_app_data', c_char_p, None),
             ('x_open', x_open_type, x_open_type(x_open)),
             ('x_delete', c_void_p, None),
@@ -272,7 +272,7 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
     @contextmanager
     def get_db(vfs):
         db = c_void_p()
-        run(libsqlite3.sqlite3_open_v2, f'file:/{file_name}'.encode() + b'\0', byref(db), SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, vfs_name.encode() + b'\0')
+        run(libsqlite3.sqlite3_open_v2, b'file:/' + file_name, byref(db), SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, vfs_name)
         try:
             yield db
         finally:
