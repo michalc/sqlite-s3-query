@@ -326,22 +326,19 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
             for statement in statements.copy().keys():
                 finalize(statement)
 
-    def rows(get_pp_stmt, finalize_stmt, columns):
-        try:
-            while True:
-                pp_stmt = get_pp_stmt()
-                res = libsqlite3.sqlite3_step(pp_stmt)
-                if res == SQLITE_DONE:
-                    break
-                if res != SQLITE_ROW:
-                    raise Exception(libsqlite3.sqlite3_errstr(res).decode())
+    def rows(get_pp_stmt, columns):
+        while True:
+            pp_stmt = get_pp_stmt()
+            res = libsqlite3.sqlite3_step(pp_stmt)
+            if res == SQLITE_DONE:
+                break
+            if res != SQLITE_ROW:
+                raise Exception(libsqlite3.sqlite3_errstr(res).decode())
 
-                yield tuple(
-                    extract[libsqlite3.sqlite3_column_type(pp_stmt, i)](pp_stmt, i)
-                    for i in range(0, len(columns))
-                )
-        finally:
-            finalize_stmt()
+            yield tuple(
+                extract[libsqlite3.sqlite3_column_type(pp_stmt, i)](pp_stmt, i)
+                for i in range(0, len(columns))
+            )
 
     def query(db, get_pp_stmts, sql, params=()):
         for get_pp_stmt, finalize_stmt in get_pp_stmts(sql):
@@ -355,7 +352,7 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
                     for i in range(0, libsqlite3.sqlite3_column_count(pp_stmt))
                 )
 
-                yield columns, rows(get_pp_stmt, finalize_stmt, columns)
+                yield columns, rows(get_pp_stmt, columns)
             finally:
                 finalize_stmt()
 
