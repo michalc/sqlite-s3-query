@@ -437,17 +437,26 @@ class TestSqliteS3Query(unittest.TestCase):
                 for row in rows:
                     rows_count += 1
 
-        self.assertEqual(rows_yielded_at_request, [
+        self.assertIn(rows_yielded_at_request, ([
             (0, None),
             (0, 'bytes=0-99'),
             (0, 'bytes=0-4095'),
-            (0, 'bytes=24-39'),
+            (0, 'bytes=24-39'),  # For older SQLite that doesn't support immutable files
             (0, 'bytes=4096-8191'),
             (0, 'bytes=8192-12287'),
             (140, 'bytes=12288-16383'),
             (276, 'bytes=16384-20479'),
             (412, 'bytes=20480-24575'),
-        ])
+        ], [
+            (0, None),
+            (0, 'bytes=0-99'),
+            (0, 'bytes=0-4095'),
+            (0, 'bytes=4096-8191'),
+            (0, 'bytes=8192-12287'),
+            (140, 'bytes=12288-16383'),
+            (276, 'bytes=16384-20479'),
+            (412, 'bytes=20480-24575'),
+        ]))
 
         # Documenting the difference with the above and a query that is not streaming. In this
         # case, a query with an ORDER BY on a column that does not have an index requires SQLite to
@@ -464,17 +473,26 @@ class TestSqliteS3Query(unittest.TestCase):
                 for row in rows:
                     rows_count += 1
 
-        self.assertEqual(rows_yielded_at_request, [
+        self.assertIn(rows_yielded_at_request, ([
             (0, None),
             (0, 'bytes=0-99'),
             (0, 'bytes=0-4095'),
-            (0, 'bytes=24-39'),
+            (0, 'bytes=24-39'),  # For older SQLite that doesn't support immutable files
             (0, 'bytes=4096-8191'),
             (0, 'bytes=8192-12287'),
             (0, 'bytes=12288-16383'),
             (0, 'bytes=16384-20479'),
             (0, 'bytes=20480-24575'),
-        ])
+        ], [
+            (0, None),
+            (0, 'bytes=0-99'),
+            (0, 'bytes=0-4095'),
+            (0, 'bytes=4096-8191'),
+            (0, 'bytes=8192-12287'),
+            (0, 'bytes=12288-16383'),
+            (0, 'bytes=16384-20479'),
+            (0, 'bytes=20480-24575'),
+        ]))
 
     def test_too_many_bytes(self):
         @contextmanager
