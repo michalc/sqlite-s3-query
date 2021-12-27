@@ -61,8 +61,8 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
         5: lambda pp_stmt, i: None,
     }
 
-    vfs_name = b's3-' + str(uuid4()).encode() + b'\0'
-    file_name = b's3-' + str(uuid4()).encode() + b'\0'
+    vfs_name = b's3-' + str(uuid4()).encode()
+    file_name = b's3-' + str(uuid4()).encode()
     body_hash = sha256(b'').hexdigest()
     scheme, netloc, path, _, _ = urlsplit(url)
 
