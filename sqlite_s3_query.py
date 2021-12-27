@@ -216,7 +216,7 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
 
         x_full_pathname_type = CFUNCTYPE(c_int, c_void_p, c_char_p, c_int, POINTER(c_char))
         def x_full_pathname(p_vfs, z_name, n_out, z_out):
-            memmove(z_out, file_name, len(file_name))
+            memmove(z_out, z_name, len(z_name) + 1)
             return SQLITE_OK
 
         x_current_time_type = CFUNCTYPE(c_int, c_void_p, POINTER(c_double))
