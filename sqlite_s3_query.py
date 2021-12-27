@@ -38,6 +38,7 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
     SQLITE_TRANSIENT = -1
     SQLITE_OPEN_READONLY = 0x00000001
     SQLITE_OPEN_URI = 0x00000040
+    SQLITE_IOCAP_IMMUTABLE = 0x00002000
 
     bind = {
         type(0): libsqlite3.sqlite3_bind_int64,
@@ -207,7 +208,7 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
 
         x_device_characteristics_type = CFUNCTYPE(c_int, c_void_p)
         def x_device_characteristics(p_file):
-            return 0
+            return SQLITE_IOCAP_IMMUTABLE
 
         x_access_type = CFUNCTYPE(c_int, c_void_p, c_char_p, c_int, POINTER(c_int))
         def x_access(p_vfs, z_name, flags, z_out):
