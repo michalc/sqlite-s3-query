@@ -37,7 +37,6 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
     SQLITE_DONE = 101
     SQLITE_TRANSIENT = -1
     SQLITE_OPEN_READONLY = 0x00000001
-    SQLITE_OPEN_URI = 0x00000040
     SQLITE_IOCAP_IMMUTABLE = 0x00002000
 
     bind = {
@@ -273,7 +272,7 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
     @contextmanager
     def get_db(vfs):
         db = c_void_p()
-        run(libsqlite3.sqlite3_open_v2, b'file:/' + file_name, byref(db), SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, vfs_name)
+        run(libsqlite3.sqlite3_open_v2, file_name, byref(db), SQLITE_OPEN_READONLY, vfs_name)
         try:
             yield db
         finally:
