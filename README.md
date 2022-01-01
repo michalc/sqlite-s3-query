@@ -44,7 +44,7 @@ For multi-statement queries, the `sqlite_s3_query_multi` function can be used.
 from sqlite_s3_query import sqlite_s3_query_multi
 
 with sqlite_s3_query_multi(url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite') as query_multi:
-    for (column, rows) in query_multi('''
+    for (columns, rows) in query_multi('''
             SELECT * FROM my_table_a WHERE my_column_a = ?;
             SELECT * FROM my_table_b WHERE my_column_b = ?;
     ''', params=('my-value-a','my-value-b')):
