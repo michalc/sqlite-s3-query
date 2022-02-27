@@ -372,7 +372,8 @@ class TestSqliteS3Query(unittest.TestCase):
                         def stream(self, method, url, params, headers):
                             parsed_url = urllib.parse.urlparse(url)
                             url = urllib.parse.urlunparse(parsed_url._replace(netloc='localhost:9001'))
-                            return original_client.stream(method, url, params=params, headers=headers + (('host', 'localhost:9000'),))
+                            headers_proxy_host = tuple((key, value) for key, value in headers if key != 'host') + (('host', 'localhost:9000'),)
+                            return original_client.stream(method, url, params=params, headers=headers_proxy_host)
                     yield Client()
             return client()
 
@@ -523,8 +524,9 @@ class TestSqliteS3Query(unittest.TestCase):
                             url = urllib.parse.urlunparse(parsed_url._replace(netloc='localhost:9001'))
                             range_query = dict(headers).get('range')
                             is_query = range_query and range_query != 'bytes=0-99'
+                            headers_proxy_host = tuple((key, value) for key, value in headers if key != 'host') + (('host', 'localhost:9000'),)
                             with original_client.stream(method, url,
-                                params=params, headers=headers + (('host', 'localhost:9000'),)
+                                params=params, headers=headers_proxy_host
                             ) as response:
                                 chunks = response.iter_bytes()
                                 def iter_bytes(chunk_size=None):
@@ -581,7 +583,8 @@ class TestSqliteS3Query(unittest.TestCase):
                         def stream(self, method, url, headers, params):
                             parsed_url = urllib.parse.urlparse(url)
                             url = urllib.parse.urlunparse(parsed_url._replace(netloc='localhost:9001'))
-                            return original_client.stream(method, url, headers=headers + (('host', 'localhost:9000'),))
+                            headers_proxy_host = tuple((key, value) for key, value in headers if key != 'host') + (('host', 'localhost:9000'),)
+                            return original_client.stream(method, url, headers=headers_proxy_host)
                     yield Client()
             return client()
 
@@ -594,7 +597,7 @@ class TestSqliteS3Query(unittest.TestCase):
         put_object_with_versioning('my-bucket', 'my.db', db)
 
         with server() as server_sock:
-            with self.assertRaisesRegex(Exception, 'Connection'):
+            with self.assertRaisesRegex(Exception, 'Server disconnected|Connection reset'):
                 sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
                     'us-east-1',
                     'AKIAIOSFODNN7EXAMPLE',
