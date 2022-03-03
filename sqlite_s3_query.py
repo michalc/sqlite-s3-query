@@ -188,7 +188,7 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
 
             return SQLITE_OK
 
-        x_file_size_type = CFUNCTYPE(c_int, c_void_p, POINTER(c_int))
+        x_file_size_type = CFUNCTYPE(c_int, c_void_p, POINTER(c_int64))
         def x_file_size(p_file, p_size):
             p_size[0] = size
             return SQLITE_OK
