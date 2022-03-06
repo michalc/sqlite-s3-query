@@ -121,6 +121,41 @@ class TestSqliteS3Query(unittest.TestCase):
                     pass
                 next(rows)
 
+    def test_select_large(self):
+        empty = (bytes(4050),)
+
+        def sqls():
+            yield ("CREATE TABLE foo(content BLOB);",())
+            for _ in range(0, 1200000):
+                yield ("INSERT INTO foo VALUES (?);", empty)
+
+        with get_db(sqls()) as db:
+            length = 0
+            for chunk in db():
+                length += len(chunk)
+            self.assertGreater(length, 4294967296)
+            put_object_with_versioning('my-bucket', 'my.db', db)
+
+        count = 0
+        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
+            'us-east-1',
+            'AKIAIOSFODNN7EXAMPLE',
+            'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            None,
+        )) as query:
+            with query('SELECT content FROM foo ORDER BY rowid LIMIT 1') as (columns, rows):
+                for _ in rows:
+                    count += 1
+
+            self.assertEqual(count, 1)
+
+            count = 0
+            with query('SELECT content FROM foo ORDER BY rowid DESC LIMIT 1') as (columns, rows):
+                for _ in rows:
+                    count += 1
+
+            self.assertEqual(count, 1)
+
     def test_select_multi(self):
         with get_db([
             ("CREATE TABLE my_table (my_col_a text, my_col_b text);", ())
