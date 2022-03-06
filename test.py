@@ -630,8 +630,16 @@ def put_object_with_versioning(bucket, key, content):
     headers = aws_sigv4_headers(
         'AKIAIOSFODNN7EXAMPLE', 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
         (), 's3', 'us-east-1', parsed_url.netloc, 'PUT', parsed_url.path, (), body_hash,
-    )
-    response = httpx.put(url, content=content, headers=headers)
+    ) + ((b'content-length', str(len(content)).encode()),)
+
+    # httpx seems to raise low-level socket-ish exceptions with multi-gb PUTs without
+    # pre-chunking the data
+    def chunked():
+        chunk_size = 1000000
+        for i in range(0, len(content), chunk_size):
+            yield content[i:i + chunk_size]
+
+    response = httpx.put(url, content=chunked(), headers=headers)
     response.raise_for_status()
 
 def create_bucket(bucket):
