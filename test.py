@@ -30,9 +30,9 @@ class TestSqliteS3Query(unittest.TestCase):
 
     def test_without_versioning(self):
         db = get_db([
-            "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+            ("CREATE TABLE my_table (my_col_a text, my_col_b text);",()),
         ] + [
-            "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
+            ("INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),()),
         ])
         put_object_without_versioning('bucket-without-versioning', 'my.db', db)
 
@@ -46,9 +46,9 @@ class TestSqliteS3Query(unittest.TestCase):
 
     def test_select(self):
         db = get_db([
-            "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+            ("CREATE TABLE my_table (my_col_a text, my_col_b text);",()),
         ] + [
-            "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
+            ("INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),())
         ])
 
         put_object_with_versioning('my-bucket', 'my.db', db)
@@ -88,9 +88,9 @@ class TestSqliteS3Query(unittest.TestCase):
             None,
         )) as query:
             db = get_db([
-                "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+                ("CREATE TABLE my_table (my_col_a text, my_col_b text);", ()),
             ] + [
-                "INSERT INTO my_table VALUES " + ','.join(["('some-new-a', 'some-new-b')"] * 500),
+                ("INSERT INTO my_table VALUES " + ','.join(["('some-new-a', 'some-new-b')"] * 500), ()),
             ])
 
             put_object_with_versioning('my-bucket', 'my.db', db)
@@ -125,9 +125,9 @@ class TestSqliteS3Query(unittest.TestCase):
 
     def test_select_multi(self):
         db = get_db([
-            "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+            ("CREATE TABLE my_table (my_col_a text, my_col_b text);", ())
         ] + [
-            "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
+            ("INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500), ()),
         ])
         put_object_with_versioning('my-bucket', 'my.db', db)
 
@@ -219,9 +219,9 @@ class TestSqliteS3Query(unittest.TestCase):
 
     def test_placeholder(self):
         db = get_db([
-            "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+            ("CREATE TABLE my_table (my_col_a text, my_col_b text);",()),
         ] + [
-            "INSERT INTO my_table VALUES ('a','b'),('c','d')",
+            ("INSERT INTO my_table VALUES ('a','b'),('c','d')",()),
         ])
 
         put_object_with_versioning('my-bucket', 'my.db', db)
@@ -239,9 +239,9 @@ class TestSqliteS3Query(unittest.TestCase):
 
     def test_partial(self):
         db = get_db([
-            "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+            ("CREATE TABLE my_table (my_col_a text, my_col_b text);",()),
         ] + [
-            "INSERT INTO my_table VALUES ('a','b'),('c','d')",
+            ("INSERT INTO my_table VALUES ('a','b'),('c','d')",()),
         ])
 
         put_object_with_versioning('my-bucket', 'my.db', db)
@@ -263,7 +263,7 @@ class TestSqliteS3Query(unittest.TestCase):
         self.assertEqual(rows, [('c',)])
 
     def test_time_and_non_python_identifier(self):
-        db = get_db(["CREATE TABLE my_table (my_col_a text, my_col_b text);"])
+        db = get_db([("CREATE TABLE my_table (my_col_a text, my_col_b text);",())])
 
         put_object_with_versioning('my-bucket', 'my.db', db)
 
@@ -281,7 +281,7 @@ class TestSqliteS3Query(unittest.TestCase):
         self.assertEqual(columns, ("date('now')", "time('now')"))
 
     def test_non_existant_table(self):
-        db = get_db(["CREATE TABLE my_table (my_col_a text, my_col_b text);"])
+        db = get_db([("CREATE TABLE my_table (my_col_a text, my_col_b text);",())])
 
         put_object_with_versioning('my-bucket', 'my.db', db)
 
@@ -295,7 +295,7 @@ class TestSqliteS3Query(unittest.TestCase):
                 query("SELECT * FROM non_table").__enter__()
 
     def test_empty_object(self):
-        db = get_db(["CREATE TABLE my_table (my_col_a text, my_col_b text);"])
+        db = get_db([("CREATE TABLE my_table (my_col_a text, my_col_b text);",())])
 
         put_object_with_versioning('my-bucket', 'my.db', b'')
 
@@ -308,7 +308,7 @@ class TestSqliteS3Query(unittest.TestCase):
             )).__enter__()
 
     def test_bad_db_header(self):
-        db = get_db(["CREATE TABLE my_table (my_col_a text, my_col_b text);"])
+        db = get_db([("CREATE TABLE my_table (my_col_a text, my_col_b text);",())])
 
         put_object_with_versioning('my-bucket', 'my.db', b'*' * 100)
 
@@ -322,8 +322,8 @@ class TestSqliteS3Query(unittest.TestCase):
                 query("SELECT * FROM non_table").__enter__()
 
     def test_bad_db_second_half(self):
-        db = get_db(["CREATE TABLE my_table (my_col_a text, my_col_b text);"] + [
-            "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
+        db = get_db([("CREATE TABLE my_table (my_col_a text, my_col_b text);",())] + [
+            ("INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),()),
         ] * 10)
 
         half_len = int(len(db) / 2)
@@ -379,9 +379,9 @@ class TestSqliteS3Query(unittest.TestCase):
 
         with server() as server_sock:
             db = get_db([
-                "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+                ("CREATE TABLE my_table (my_col_a text, my_col_b text);",()),
             ] + [
-                "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
+                ("INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),()),
             ])
 
             put_object_with_versioning('my-bucket', 'my.db', db)
@@ -420,10 +420,10 @@ class TestSqliteS3Query(unittest.TestCase):
             return client()
 
         db = get_db([
-            "PRAGMA page_size = 4096;",
-            "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+            ("PRAGMA page_size = 4096;",()),
+            ("CREATE TABLE my_table (my_col_a text, my_col_b text);",()),
         ] + [
-            "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
+            ("INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),()),
         ])
 
         put_object_with_versioning('my-bucket', 'my.db', db)
@@ -540,9 +540,9 @@ class TestSqliteS3Query(unittest.TestCase):
 
         with server() as server_sock:
             db = get_db([
-                "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+                ("CREATE TABLE my_table (my_col_a text, my_col_b text);",()),
             ] + [
-                "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
+                ("INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),()),
             ])
 
             put_object_with_versioning('my-bucket', 'my.db', db)
@@ -589,9 +589,9 @@ class TestSqliteS3Query(unittest.TestCase):
             return client()
 
         db = get_db([
-            "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+            ("CREATE TABLE my_table (my_col_a text, my_col_b text);",()),
         ] + [
-            "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
+            ("INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),()),
         ])
 
         put_object_with_versioning('my-bucket', 'my.db', db)
@@ -724,8 +724,8 @@ def get_db(sqls):
     with tempfile.NamedTemporaryFile() as fp:
         with sqlite3.connect(fp.name, isolation_level=None) as con:
             cur = con.cursor()
-            for sql in sqls:
-                cur.execute(sql)
+            for sql, params in sqls:
+                cur.execute(sql, params)
 
         with open(fp.name, 'rb') as f:
             return f.read()
