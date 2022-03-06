@@ -29,12 +29,12 @@ class TestSqliteS3Query(unittest.TestCase):
             self.assertEqual(libsqlite3.sqlite3_libversion_number(), int(sqlite3_version))
 
     def test_without_versioning(self):
-        db = get_db([
-            "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+        with get_db([
+            ("CREATE TABLE my_table (my_col_a text, my_col_b text);",()),
         ] + [
-            "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
-        ])
-        put_object_without_versioning('bucket-without-versioning', 'my.db', db)
+            ("INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),()),
+        ]) as db:
+            put_object_without_versioning('bucket-without-versioning', 'my.db', db)
 
         with self.assertRaisesRegex(Exception, 'The bucket must have versioning enabled'):
             sqlite_s3_query('http://localhost:9000/bucket-without-versioning/my.db', get_credentials=lambda now: (
@@ -45,13 +45,12 @@ class TestSqliteS3Query(unittest.TestCase):
             )).__enter__()
 
     def test_select(self):
-        db = get_db([
-            "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+        with get_db([
+            ("CREATE TABLE my_table (my_col_a text, my_col_b text);",()),
         ] + [
-            "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
-        ])
-
-        put_object_with_versioning('my-bucket', 'my.db', db)
+            ("INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),())
+        ]) as db:
+            put_object_with_versioning('my-bucket', 'my.db', db)
 
         with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
             'us-east-1',
@@ -87,13 +86,12 @@ class TestSqliteS3Query(unittest.TestCase):
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
         )) as query:
-            db = get_db([
-                "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+            with get_db([
+                ("CREATE TABLE my_table (my_col_a text, my_col_b text);", ()),
             ] + [
-                "INSERT INTO my_table VALUES " + ','.join(["('some-new-a', 'some-new-b')"] * 500),
-            ])
-
-            put_object_with_versioning('my-bucket', 'my.db', db)
+                ("INSERT INTO my_table VALUES " + ','.join(["('some-new-a', 'some-new-b')"] * 500), ()),
+            ]) as db:
+                put_object_with_versioning('my-bucket', 'my.db', db)
 
             with query('SELECT my_col_a FROM my_table') as (columns, rows):
                 rows = list(rows)
@@ -123,13 +121,48 @@ class TestSqliteS3Query(unittest.TestCase):
                     pass
                 next(rows)
 
+    def test_select_large(self):
+        empty = (bytes(4050),)
+
+        def sqls():
+            yield ("CREATE TABLE foo(content BLOB);",())
+            for _ in range(0, 1200000):
+                yield ("INSERT INTO foo VALUES (?);", empty)
+
+        with get_db(sqls()) as db:
+            length = 0
+            for chunk in db():
+                length += len(chunk)
+            self.assertGreater(length, 4294967296)
+            put_object_with_versioning('my-bucket', 'my.db', db)
+
+        count = 0
+        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
+            'us-east-1',
+            'AKIAIOSFODNN7EXAMPLE',
+            'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            None,
+        )) as query:
+            with query('SELECT content FROM foo ORDER BY rowid LIMIT 1') as (columns, rows):
+                for _ in rows:
+                    count += 1
+
+            self.assertEqual(count, 1)
+
+            count = 0
+            with query('SELECT content FROM foo ORDER BY rowid DESC LIMIT 1') as (columns, rows):
+                for _ in rows:
+                    count += 1
+
+            self.assertEqual(count, 1)
+
     def test_select_multi(self):
-        db = get_db([
-            "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+        with get_db([
+            ("CREATE TABLE my_table (my_col_a text, my_col_b text);", ())
         ] + [
-            "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
-        ])
-        put_object_with_versioning('my-bucket', 'my.db', db)
+            ("INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500), ()),
+        ]) as db:
+            put_object_with_versioning('my-bucket', 'my.db', db)
 
         with sqlite_s3_query_multi('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
             'us-east-1',
@@ -218,13 +251,12 @@ class TestSqliteS3Query(unittest.TestCase):
                 rows_list = list(rows)
 
     def test_placeholder(self):
-        db = get_db([
-            "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+        with get_db([
+            ("CREATE TABLE my_table (my_col_a text, my_col_b text);",()),
         ] + [
-            "INSERT INTO my_table VALUES ('a','b'),('c','d')",
-        ])
-
-        put_object_with_versioning('my-bucket', 'my.db', db)
+            ("INSERT INTO my_table VALUES ('a','b'),('c','d')",()),
+        ]) as db:
+            put_object_with_versioning('my-bucket', 'my.db', db)
 
         with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
             'us-east-1',
@@ -238,13 +270,12 @@ class TestSqliteS3Query(unittest.TestCase):
         self.assertEqual(rows, [('c',)])
 
     def test_partial(self):
-        db = get_db([
-            "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+        with get_db([
+            ("CREATE TABLE my_table (my_col_a text, my_col_b text);",()),
         ] + [
-            "INSERT INTO my_table VALUES ('a','b'),('c','d')",
-        ])
-
-        put_object_with_versioning('my-bucket', 'my.db', db)
+            ("INSERT INTO my_table VALUES ('a','b'),('c','d')",()),
+        ]) as db:
+            put_object_with_versioning('my-bucket', 'my.db', db)
 
         query_my_db = functools.partial(sqlite_s3_query,
             url='http://localhost:9000/my-bucket/my.db',
@@ -263,9 +294,8 @@ class TestSqliteS3Query(unittest.TestCase):
         self.assertEqual(rows, [('c',)])
 
     def test_time_and_non_python_identifier(self):
-        db = get_db(["CREATE TABLE my_table (my_col_a text, my_col_b text);"])
-
-        put_object_with_versioning('my-bucket', 'my.db', db)
+        with get_db([("CREATE TABLE my_table (my_col_a text, my_col_b text);",())]) as db:
+            put_object_with_versioning('my-bucket', 'my.db', db)
 
         with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
             'us-east-1',
@@ -281,9 +311,8 @@ class TestSqliteS3Query(unittest.TestCase):
         self.assertEqual(columns, ("date('now')", "time('now')"))
 
     def test_non_existant_table(self):
-        db = get_db(["CREATE TABLE my_table (my_col_a text, my_col_b text);"])
-
-        put_object_with_versioning('my-bucket', 'my.db', db)
+        with get_db([("CREATE TABLE my_table (my_col_a text, my_col_b text);",())]) as db:
+            put_object_with_versioning('my-bucket', 'my.db', db)
 
         with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
             'us-east-1',
@@ -295,9 +324,7 @@ class TestSqliteS3Query(unittest.TestCase):
                 query("SELECT * FROM non_table").__enter__()
 
     def test_empty_object(self):
-        db = get_db(["CREATE TABLE my_table (my_col_a text, my_col_b text);"])
-
-        put_object_with_versioning('my-bucket', 'my.db', b'')
+        put_object_with_versioning('my-bucket', 'my.db', lambda: (b'',))
 
         with self.assertRaisesRegex(Exception, 'disk I/O error'):
             sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
@@ -308,9 +335,7 @@ class TestSqliteS3Query(unittest.TestCase):
             )).__enter__()
 
     def test_bad_db_header(self):
-        db = get_db(["CREATE TABLE my_table (my_col_a text, my_col_b text);"])
-
-        put_object_with_versioning('my-bucket', 'my.db', b'*' * 100)
+        put_object_with_versioning('my-bucket', 'my.db', lambda: (b'*' * 100,))
 
         with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
             'us-east-1',
@@ -322,13 +347,13 @@ class TestSqliteS3Query(unittest.TestCase):
                 query("SELECT * FROM non_table").__enter__()
 
     def test_bad_db_second_half(self):
-        db = get_db(["CREATE TABLE my_table (my_col_a text, my_col_b text);"] + [
-            "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
-        ] * 10)
-
-        half_len = int(len(db) / 2)
-        db = db[:half_len] + len(db[half_len:]) * b'-'
-        put_object_with_versioning('my-bucket', 'my.db', db)
+        with get_db([("CREATE TABLE my_table (my_col_a text, my_col_b text);",())] + [
+            ("INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),()),
+        ] * 10) as db_full:
+            db = b''.join(db_full())
+            half_len = int(len(db) / 2)
+            db = db[:half_len] + len(db[half_len:]) * b'-'
+            put_object_with_versioning('my-bucket', 'my.db', lambda: (db,))
 
         with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
             'us-east-1',
@@ -378,13 +403,12 @@ class TestSqliteS3Query(unittest.TestCase):
             return client()
 
         with server() as server_sock:
-            db = get_db([
-                "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+            with get_db([
+                ("CREATE TABLE my_table (my_col_a text, my_col_b text);",()),
             ] + [
-                "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
-            ])
-
-            put_object_with_versioning('my-bucket', 'my.db', db)
+                ("INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),()),
+            ]) as db:
+                put_object_with_versioning('my-bucket', 'my.db', db)
 
             with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
                 'us-east-1',
@@ -419,14 +443,13 @@ class TestSqliteS3Query(unittest.TestCase):
                     yield Client()
             return client()
 
-        db = get_db([
-            "PRAGMA page_size = 4096;",
-            "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+        with get_db([
+            ("PRAGMA page_size = 4096;",()),
+            ("CREATE TABLE my_table (my_col_a text, my_col_b text);",()),
         ] + [
-            "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
-        ])
-
-        put_object_with_versioning('my-bucket', 'my.db', db)
+            ("INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),()),
+        ]) as db:
+            put_object_with_versioning('my-bucket', 'my.db', db)
 
         with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
             'us-east-1',
@@ -539,13 +562,12 @@ class TestSqliteS3Query(unittest.TestCase):
             return client()
 
         with server() as server_sock:
-            db = get_db([
-                "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+            with get_db([
+                ("CREATE TABLE my_table (my_col_a text, my_col_b text);",()),
             ] + [
-                "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
-            ])
-
-            put_object_with_versioning('my-bucket', 'my.db', db)
+                ("INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),()),
+            ]) as db:
+                put_object_with_versioning('my-bucket', 'my.db', db)
 
             with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
                 'us-east-1',
@@ -588,13 +610,12 @@ class TestSqliteS3Query(unittest.TestCase):
                     yield Client()
             return client()
 
-        db = get_db([
-            "CREATE TABLE my_table (my_col_a text, my_col_b text);",
+        with get_db([
+            ("CREATE TABLE my_table (my_col_a text, my_col_b text);",()),
         ] + [
-            "INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),
-        ])
-
-        put_object_with_versioning('my-bucket', 'my.db', db)
+            ("INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500),()),
+        ]) as db:
+            put_object_with_versioning('my-bucket', 'my.db', db)
 
         with server() as server_sock:
             with self.assertRaisesRegex(Exception, 'Server disconnected|Connection reset'):
@@ -609,14 +630,19 @@ def put_object_without_versioning(bucket, key, content):
     create_bucket(bucket)
 
     url = f'http://127.0.0.1:9000/{bucket}/{key}'
-    body_hash = hashlib.sha256(content).hexdigest()
+    sha = hashlib.sha256()
+    length = 0
+    for chunk in content():
+        length += len(chunk)
+        sha.update(chunk)
+    body_hash = sha.hexdigest()
     parsed_url = urllib.parse.urlsplit(url)
 
     headers = aws_sigv4_headers(
         'AKIAIOSFODNN7EXAMPLE', 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
         (), 's3', 'us-east-1', parsed_url.netloc, 'PUT', parsed_url.path, (), body_hash,
-    )
-    response = httpx.put(url, content=content, headers=headers)
+    ) + ((b'content-length', str(length).encode()),)
+    response = httpx.put(url, content=content(), headers=headers)
     response.raise_for_status()
 
 def put_object_with_versioning(bucket, key, content):
@@ -624,14 +650,20 @@ def put_object_with_versioning(bucket, key, content):
     enable_versioning(bucket)
 
     url = f'http://127.0.0.1:9000/{bucket}/{key}'
-    body_hash = hashlib.sha256(content).hexdigest()
+    sha = hashlib.sha256()
+    length = 0
+    for chunk in content():
+        length += len(chunk)
+        sha.update(chunk)
+    body_hash = sha.hexdigest()
     parsed_url = urllib.parse.urlsplit(url)
 
     headers = aws_sigv4_headers(
         'AKIAIOSFODNN7EXAMPLE', 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
         (), 's3', 'us-east-1', parsed_url.netloc, 'PUT', parsed_url.path, (), body_hash,
-    )
-    response = httpx.put(url, content=content, headers=headers)
+    ) + ((b'content-length', str(length).encode()),)
+
+    response = httpx.put(url, content=content(), headers=headers)
     response.raise_for_status()
 
 def create_bucket(bucket):
@@ -720,15 +752,26 @@ def aws_sigv4_headers(access_key_id, secret_access_key, pre_auth_headers,
     ) + pre_auth_headers
 
 
+@contextmanager
 def get_db(sqls):
     with tempfile.NamedTemporaryFile() as fp:
         with sqlite3.connect(fp.name, isolation_level=None) as con:
             cur = con.cursor()
-            for sql in sqls:
-                cur.execute(sql)
+            cur.execute('BEGIN')
+            for sql, params in sqls:
+                cur.execute(sql, params)
+            cur.execute('COMMIT')
 
-        with open(fp.name, 'rb') as f:
-            return f.read()
+        def db():
+            with open(fp.name, 'rb') as f:
+                while True:
+                    chunk = f.read(65536)
+                    if not chunk:
+                        break
+                    yield chunk
+
+        yield db
+
 
 def get_new_socket():
     sock = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM,
