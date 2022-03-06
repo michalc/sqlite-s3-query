@@ -724,8 +724,10 @@ def get_db(sqls):
     with tempfile.NamedTemporaryFile() as fp:
         with sqlite3.connect(fp.name, isolation_level=None) as con:
             cur = con.cursor()
+            cur.execute('BEGIN')
             for sql, params in sqls:
                 cur.execute(sql, params)
+            cur.execute('COMMIT')
 
         with open(fp.name, 'rb') as f:
             return f.read()
