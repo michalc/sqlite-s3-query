@@ -140,7 +140,7 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
     def get_vfs(http_client):
         with make_auth_request(http_client, 'HEAD', (), ()) as response:
             head_headers = response.headers
-            next(response.iter_bytes())
+            next(response.iter_bytes(), b'')
 
         try:
             version_id = head_headers['x-amz-version-id']
