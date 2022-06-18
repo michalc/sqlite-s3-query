@@ -22,7 +22,7 @@ setuptools.setup(
     ],
     python_requires='>=3.6.0',
     install_requires=[
-        'httpx>=0.18.2',
+        'httpx>=0.23.0',
     ],
     py_modules=[
         'sqlite_s3_query',
