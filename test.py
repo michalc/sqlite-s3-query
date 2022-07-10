@@ -326,13 +326,14 @@ class TestSqliteS3Query(unittest.TestCase):
     def test_empty_object(self):
         put_object_with_versioning('my-bucket', 'my.db', lambda: (b'',))
 
-        with self.assertRaisesRegex(Exception, 'disk I/O error'):
-            sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
-                'us-east-1',
-                'AKIAIOSFODNN7EXAMPLE',
-                'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-                None,
-            )).__enter__()
+        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
+            'us-east-1',
+            'AKIAIOSFODNN7EXAMPLE',
+            'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            None,
+        )) as query:
+            with self.assertRaisesRegex(Exception, 'disk I/O error'):
+                query('SELECT 1').__enter__()
 
     def test_bad_db_header(self):
         put_object_with_versioning('my-bucket', 'my.db', lambda: (b'*' * 100,))

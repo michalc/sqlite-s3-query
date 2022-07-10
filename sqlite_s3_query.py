@@ -37,6 +37,7 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
     SQLITE_DONE = 101
     SQLITE_TRANSIENT = -1
     SQLITE_OPEN_READONLY = 0x00000001
+    SQLITE_OPEN_NOMUTEX = 0x00008000
     SQLITE_IOCAP_IMMUTABLE = 0x00002000
 
     bind = {
@@ -272,7 +273,7 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
     @contextmanager
     def get_db(vfs):
         db = c_void_p()
-        run(libsqlite3.sqlite3_open_v2, file_name, byref(db), SQLITE_OPEN_READONLY, vfs_name)
+        run(libsqlite3.sqlite3_open_v2, file_name, byref(db), SQLITE_OPEN_READONLY | SQLITE_OPEN_NOMUTEX, vfs_name)
         try:
             yield db
         finally:
@@ -340,29 +341,31 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
                 for i in range(0, len(columns))
             )
 
-    def query(db, get_pp_stmts, sql, params=()):
-        for get_pp_stmt, finalize_stmt in get_pp_stmts(sql):
-            try:
-                pp_stmt = get_pp_stmt()
-                for i, param in enumerate(params):
-                    run_with_db(db, bind[type(param)], pp_stmt, i + 1, param)
+    def query(vfs, sql, params=()):
+        with \
+                get_db(vfs) as db, \
+                get_pp_stmt_getter(db) as get_pp_stmts:
 
-                columns = tuple(
-                    libsqlite3.sqlite3_column_name(pp_stmt, i).decode()
-                    for i in range(0, libsqlite3.sqlite3_column_count(pp_stmt))
-                )
+            for get_pp_stmt, finalize_stmt in get_pp_stmts(sql):
+                try:
+                    pp_stmt = get_pp_stmt()
+                    for i, param in enumerate(params):
+                        run_with_db(db, bind[type(param)], pp_stmt, i + 1, param)
 
-                yield columns, rows(get_pp_stmt, columns)
-            finally:
-                finalize_stmt()
+                    columns = tuple(
+                        libsqlite3.sqlite3_column_name(pp_stmt, i).decode()
+                        for i in range(0, libsqlite3.sqlite3_column_count(pp_stmt))
+                    )
+
+                    yield columns, rows(get_pp_stmt, columns)
+                finally:
+                    finalize_stmt()
 
     with \
             get_http_client() as http_client, \
-            get_vfs(http_client) as vfs, \
-            get_db(vfs) as db, \
-            get_pp_stmt_getter(db) as get_pp_stmts:
+            get_vfs(http_client) as vfs:
 
-        yield partial(query, db, get_pp_stmts)
+        yield partial(query, vfs)
 
 
 @contextmanager
