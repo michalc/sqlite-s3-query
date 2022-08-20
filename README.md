@@ -120,49 +120,22 @@ with \
         print(row)
 ```
 
-How to use this to fetch credentials for the IAM role associated with an ECS container is shown in the example below.
+sqlite-s3-query does not install or use boto3, but if you install it separately, you can use it to fetch credentials as in the below example. This can be useful when you want to use temporary credentials associated with an ECS or EC2 role, which boto3 does automatically.
 
 ```python
-import contextlib
-import os
-import threading
-import httpx
+import boto3
 
-def GetECSCredentials():
-    aws_access_key_id, aws_secret_access_key, aws_session_token = None, None, None
-    expiration = datetime.datetime.fromtimestamp(0)
-    lock = threading.Lock()
-    aws_region = os.environ['AWS_REGION']
-    creds_path = os.environ['AWS_CONTAINER_CREDENTIALS_RELATIVE_URI']
-
-    @contextlib.contextmanager
-    def lock_with_timeout():
-        lock.acquire(timeout=10)
-        try:
-            yield
-        finally:
-            lock.release()
-
-    def get_credentials(now):
-        nonlocal aws_access_key_id, aws_secret_access_key, aws_session_token
-        nonlocal expiration
-
-        # If this cannot be called from multiple threads at the same time, the lock can be ommitted
-        with lock_with_timeout():
-            if now > expiration:
-                creds = httpx.get(f'http://169.254.170.2{creds_path}').json()
-                aws_access_key_id = creds['AccessKeyId']
-                aws_secret_access_key = creds['SecretAccessKey']
-                aws_session_token = creds['Token']
-                expiration = datetime.datetime.strptime(creds['Expiration'], '%Y-%m-%dT%H:%M:%SZ')
-
-        return aws_region, aws_access_key_id, aws_secret_access_key, aws_session_token
+def GetBoto3Credentials():
+    session = boto3.Session()
+    credentials = session.get_credentials()
+    def get_credentials(_):
+        return (session.region_name,) + credentials.get_frozen_credentials()
 
     return get_credentials
 
 query_my_db = partial(sqlite_s3_query,
     url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite',
-    get_credentials=GetECSCredentials(),
+    get_credentials=GetBoto3Credentials(),
 )
 
 with \
