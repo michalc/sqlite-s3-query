@@ -158,6 +158,21 @@ with \
         print(row)
 ```
 
+### Permissions
+
+The AWS credentials must have both the `s3:GetObject` and `s3:GetObjectVersion` permissions on the database object. For example if the database is at the key `my-db.sqlite` in bucket `my-bucket`, then the minimal set of permissions are shown below.
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [{
+        "Effect": "Allow",
+        "Action": ["s3:GetObject", "s3:GetObjectVersion"],
+        "Resource": "arn:aws:s3:::my-bucket/my-db.sqlite"
+    }]
+}
+```
+
 ### HTTP Client
 
 The HTTP client can be changed by overriding the the default `get_http_client` parameter, which is shown below.
