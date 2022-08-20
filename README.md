@@ -138,7 +138,7 @@ with \
         print(row)
 ```
 
-sqlite-s3-query does not install or use boto3, but if you install it separately, you can use it to fetch credentials as in the below example. This can be useful when you want to use temporary credentials associated with an ECS or EC2 role, which boto3 does automatically.
+sqlite-s3-query does not install or use boto3, but if you install it separately, you can use it to fetch credentials as in the below example. This can be useful when you want to use temporary credentials associated with an ECS or EC2 role, which boto3 fetches automatically.
 
 ```python
 import boto3
