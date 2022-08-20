@@ -97,6 +97,7 @@ The AWS credentials must have both the `s3:GetObject` and `s3:GetObjectVersion` 
 The AWS region and the credentials are taken from environment variables, but this can be changed using the `get_credentials` parameter. Below shows the default implementation of this that can be overriden.
 
 ```python
+from sqlite_s3_query import sqlite_s3_query
 import os
 
 def get_credentials(_):
@@ -124,6 +125,7 @@ sqlite-s3-query does not install or use boto3, but if you install it separately,
 
 ```python
 import boto3
+from sqlite_s3_query import sqlite_s3_query
 
 def GetBoto3Credentials():
     session = boto3.Session()
