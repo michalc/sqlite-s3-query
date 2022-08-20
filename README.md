@@ -77,6 +77,21 @@ with \
         print(row)
 ```
 
+### Permissions
+
+The AWS credentials must have both the `s3:GetObject` and `s3:GetObjectVersion` permissions on the database object. For example if the database is at the key `my-db.sqlite` in bucket `my-bucket`, then the minimal set of permissions are shown below.
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [{
+        "Effect": "Allow",
+        "Action": ["s3:GetObject", "s3:GetObjectVersion"],
+        "Resource": "arn:aws:s3:::my-bucket/my-db.sqlite"
+    }]
+}
+```
+
 ### Credentials
 
 The AWS region and the credentials are taken from environment variables, but this can be changed using the `get_credentials` parameter. Below shows the default implementation of this that can be overriden.
@@ -156,21 +171,6 @@ with \
 
     for row in rows:
         print(row)
-```
-
-### Permissions
-
-The AWS credentials must have both the `s3:GetObject` and `s3:GetObjectVersion` permissions on the database object. For example if the database is at the key `my-db.sqlite` in bucket `my-bucket`, then the minimal set of permissions are shown below.
-
-```json
-{
-    "Version": "2012-10-17",
-    "Statement": [{
-        "Effect": "Allow",
-        "Action": ["s3:GetObject", "s3:GetObjectVersion"],
-        "Resource": "arn:aws:s3:::my-bucket/my-db.sqlite"
-    }]
-}
 ```
 
 ### HTTP Client
