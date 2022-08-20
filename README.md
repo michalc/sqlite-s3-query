@@ -77,6 +77,23 @@ with \
         print(row)
 ```
 
+### Pandas DataFrame
+
+You can create a Pandas DataFrame from query results by passing the `rows` iterable and `columns` tuple to the `DataFrame` constructor as below.
+
+```python
+import pandas as pd
+from sqlite_s3_query import sqlite_s3_query
+
+with \
+        sqlite_s3_query(url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite') as query, \
+        query('SELECT * FROM my_table WHERE my_column = ?', params=('my-value',)) as (columns, rows):
+
+    df = pd.DataFrame(rows, columns=columns)
+
+print(df)
+```
+
 ### Permissions
 
 The AWS credentials must have both the `s3:GetObject` and `s3:GetObjectVersion` permissions on the database object. For example if the database is at the key `my-db.sqlite` in bucket `my-bucket`, then the minimal set of permissions are shown below.
