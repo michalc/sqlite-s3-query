@@ -290,11 +290,35 @@ class TestSqliteS3Query(unittest.TestCase):
                 for (columns, rows) in query('''
                     SELECT COUNT(*) FROM my_table WHERE my_col_a = :first;
                     SELECT COUNT(*) FROM my_table WHERE my_col_a = :second;
-                ''', named_params=((':first', 'some-text-a'),(':second', 'some-text-c')))
+                ''', named_params=(((':first', 'some-text-a'),),((':second', 'some-text-c'),)))
             ]
 
         self.assertEqual(rows_list, [[(500,)], [(100,)]])
 
+    def test_select_multi_with_positional_params(self):
+        with get_db([
+            ("CREATE TABLE my_table (my_col_a text, my_col_b text);", ())
+        ] + [
+            ("INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500), ()),
+            ("INSERT INTO my_table VALUES " + ','.join(["('some-text-c', 'some-text-d')"] * 100), ()),
+        ]) as db:
+            put_object_with_versioning('my-bucket', 'my.db', db)
+
+        with sqlite_s3_query_multi('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
+            'us-east-1',
+            'AKIAIOSFODNN7EXAMPLE',
+            'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            None,
+        )) as query:
+            rows_list = [
+                list(rows)
+                for (columns, rows) in query('''
+                    SELECT COUNT(*) FROM my_table WHERE my_col_a = ?;
+                    SELECT COUNT(*) FROM my_table WHERE my_col_a = ?;
+                ''', params=(('some-text-a',), ('some-text-c',),))
+            ]
+
+        self.assertEqual(rows_list, [[(500,)], [(100,)]])
 
     def test_placeholder(self):
         with get_db([
