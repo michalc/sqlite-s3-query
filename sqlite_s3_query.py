@@ -342,20 +342,25 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
             )
 
     def query(vfs, sql, params=(), named_params=()):
+
+        def zip_first(first_iterable, *iterables, default=()):
+            iters = tuple(iter(iterable) for iterable in iterables)
+            for value in first_iterable:
+                yield (value,) + tuple(next(it, default) for it in iters)
+
         with \
                 get_db(vfs) as db, \
                 get_pp_stmt_getter(db) as get_pp_stmts:
 
-            for get_pp_stmt, finalize_stmt in get_pp_stmts(sql):
+            for (get_pp_stmt, finalize_stmt), statment_params, statement_named_params in zip_first(get_pp_stmts(sql), params, named_params):
                 try:
                     pp_stmt = get_pp_stmt()
-                    for i, param in enumerate(params):
+                    for i, param in enumerate(statment_params):
                         run_with_db(db, bind[type(param)], pp_stmt, i + 1, param)
 
-                    for param_name, param_value in named_params:
+                    for param_name, param_value in statement_named_params:
                         index = libsqlite3.sqlite3_bind_parameter_index(pp_stmt, param_name.encode('utf-8'))
-                        if index != 0:
-                            run_with_db(db, bind[type(param_value)], pp_stmt, index, param_value)
+                        run_with_db(db, bind[type(param_value)], pp_stmt, index, param_value)
 
                     columns = tuple(
                         libsqlite3.sqlite3_column_name(pp_stmt, i).decode()
@@ -384,7 +389,7 @@ def sqlite_s3_query(url, get_credentials=lambda now: (
 
     @contextmanager
     def query(query_base, sql, params=(), named_params=()):
-        for columns, rows in query_base(sql, params, named_params):
+        for columns, rows in query_base(sql, (params,), (named_params,)):
             yield columns, rows
             break
 
