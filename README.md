@@ -36,6 +36,11 @@ with sqlite_s3_query(url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sql
     with query('SELECT * FROM my_table WHERE my_column = ?', params=('my-value',)) as (columns, rows):
         for row in rows:
             print(row)
+
+    # Or can use named parameters
+    with query('SELECT * FROM my_table WHERE my_column = :my_param', named_params=((':my_param', 'my-value'),)) as (columns, rows):
+        for row in rows:
+            print(row)
 ```
 
 For multi-statement queries, the `sqlite_s3_query_multi` function can be used.
