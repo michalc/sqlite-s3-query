@@ -214,3 +214,7 @@ with \
     for row in rows:
         print(row)
 ```
+
+### Multithreading
+
+It is safe for multiple threads to call the same `query` function. Under the hood, each use of `query` uses a separate SQLite "connection" to the database combined with the`SQLITE_OPEN_NOMUTEX` flag, which makes this safe while not locking unnecessarily.
