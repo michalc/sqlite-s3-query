@@ -20,7 +20,7 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
     os.environ['AWS_ACCESS_KEY_ID'],
     os.environ['AWS_SECRET_ACCESS_KEY'],
     os.environ.get('AWS_SESSION_TOKEN'),  # Only needed for temporary credentials
-), get_http_client=lambda: httpx.Client(),
+), get_http_client=lambda: httpx.Client(transport=httpx.HTTPTransport(retries=3)),
    get_libsqlite3=lambda: cdll.LoadLibrary(find_library('sqlite3'))):
     libsqlite3 = get_libsqlite3()
     libsqlite3.sqlite3_errstr.restype = c_char_p

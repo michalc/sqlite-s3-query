@@ -181,7 +181,7 @@ from sqlite_s3_query import sqlite_s3_query
 
 query_my_db = partial(sqlite_s3_query,
     url='https://my-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite',
-    get_http_client=lambda: httpx.Client(),
+    get_http_client=lambda: httpx.Client(transport=httpx.HTTPTransport(retries=3)),
 )
 
 with \
