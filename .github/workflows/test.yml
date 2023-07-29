@@ -31,9 +31,9 @@ jobs:
     strategy:
       matrix:
         sqlite3-url-version:
-          - "https://www.sqlite.org/src/tarball/5c9a6c06/SQLite-5c9a6c06.tar.gz#3036000"
-          - "https://www.sqlite.org/src/tarball/cd0b37c5/SQLite-cd0b37c5.tar.gz#3007015"
-          - "default"
+          - {url: "https://www.sqlite.org/src/tarball/5c9a6c06/SQLite-5c9a6c06.tar.gz", version: "3036000"}
+          - {url: "https://www.sqlite.org/src/tarball/cd0b37c5/SQLite-cd0b37c5.tar.gz", version: "3007015"}
+          - {url: "default", version: "default"}
         os-and-python-version:
           - {os: "ubuntu-20.04", python: "3.6.7"}
           - {os: "ubuntu-20.04", python: "3.7.1"}
@@ -56,10 +56,9 @@ jobs:
           name: reporter
           path: ./reporter
       - name: Install SQLite
-        if: matrix.sqlite3-url-version != 'default'
+        if: matrix.sqlite3-url-version.version != 'default'
         run: |
-          SQLITE3_URL="$(echo '${{ matrix.sqlite3-url-version }}' | cut -f1 -d#)"
-          wget -O sqlite3.tar.gz "$SQLITE3_URL"
+          wget -O sqlite3.tar.gz '${{ matrix.sqlite3-url-version.url }}'
           mkdir sqlite3
           tar -zxvf sqlite3.tar.gz --strip-components=1 -C sqlite3
           mkdir ./lib
@@ -75,12 +74,12 @@ jobs:
           pip install ".[dev]"
       - name: "Test"
         run: |
-          SQLITE3_VERSION="$(echo '${{ matrix.sqlite3-url-version }}' | cut -f2 -d#)"
+          SQLITE3_VERSION='${{ matrix.sqlite3-url-version.version }}'
           LIBSQLITE3_PATH="${PWD}/lib/libsqlite3.so.0"
           coverage run -m unittest
           coverage xml
           chmod +x ./reporter/cc-test-reporter
-          COVERAGE_FILE_NAME="./coverage/${{ matrix.os-and-python-version.python }}-$(echo '${{ matrix.sqlite3-url-version }}' | md5sum | cut -d ' ' -f 1).json"
+          COVERAGE_FILE_NAME="./coverage/${{ matrix.os-and-python-version.python }}-${{ matrix.sqlite3-url-version.version }}.json"
           ./reporter/cc-test-reporter format-coverage --output "$COVERAGE_FILE_NAME"
       - name: "Save code coverage"
         uses: actions/upload-artifact@v3
