@@ -31,6 +31,7 @@ jobs:
     strategy:
       matrix:
         sqlite3-url-version:
+          - {url: "https://www.sqlite.org/src/tarball/831d0fb2/SQLite-831d0fb2.tar.gz", version: "3042000"}
           - {url: "https://www.sqlite.org/src/tarball/5c9a6c06/SQLite-5c9a6c06.tar.gz", version: "3036000"}
           - {url: "https://www.sqlite.org/src/tarball/cd0b37c5/SQLite-cd0b37c5.tar.gz", version: "3007015"}
           - {url: "default", version: "default"}
@@ -96,5 +97,5 @@ jobs:
         run: |
           ls -R
           chmod +x ./reporter/cc-test-reporter
-          ./reporter/cc-test-reporter sum-coverage ./coverage/*.json -p 18
+          ./reporter/cc-test-reporter sum-coverage ./coverage/*.json -p 24
           ./reporter/cc-test-reporter upload-coverage
