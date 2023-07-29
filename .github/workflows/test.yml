@@ -61,21 +61,19 @@ jobs:
           wget -O sqlite3.tar.gz '${{ matrix.sqlite3-url-version.url }}'
           mkdir sqlite3
           tar -zxvf sqlite3.tar.gz --strip-components=1 -C sqlite3
-          mkdir ./lib
           (
             cd sqlite3
             ./configure
             make sqlite3.c
             gcc -shared -fPIC -o libsqlite3.so.0 sqlite3.c
-            mv libsqlite3.so.0 ../lib
           )
+          echo "SQLITE3_VERSION=${{ matrix.sqlite3-url-version.version }}" >> "$GITHUB_ENV"
+          echo "LIBSQLITE3_PATH=${PWD}/sqlite3/libsqlite3.so.0" >> "$GITHUB_ENV"
       - name: "Install sqlite-s3-query and any dependencies"
         run: |
           pip install ".[dev]"
       - name: "Test"
         run: |
-          SQLITE3_VERSION='${{ matrix.sqlite3-url-version.version }}'
-          LIBSQLITE3_PATH="${PWD}/lib/libsqlite3.so.0"
           coverage run -m unittest
           coverage xml
           chmod +x ./reporter/cc-test-reporter
