@@ -39,6 +39,8 @@ jobs:
           - {os: "ubuntu-20.04", python: "3.7.1"}
           - {os: "ubuntu-20.04", python: "3.8.0"}
           - {os: "ubuntu-20.04", python: "3.9.0"}
+          - {os: "ubuntu-20.04", python: "3.10.0"}
+          - {os: "ubuntu-20.04", python: "3.11.0"}
     runs-on: '${{ matrix.os-and-python-version.os }}'
     steps:
       - name: "Checkout"
@@ -53,14 +55,10 @@ jobs:
         with:
           name: reporter
           path: ./reporter
-      - name: "Set environment variables"
-        run: |
-          echo 'SQLITE3_URL='$(echo '${{ matrix.sqlite3-url-version }}' | cut -f1 -d#) >> "$GITHUB_ENV"
-          echo 'SQLITE3_VERSION='$(echo '${{ matrix.sqlite3-url-version }}' | cut -f2 -d#) >> "$GITHUB_ENV"
-          echo 'LD_LIBRARY_PATH='"$PWD"'/lib' >> "$GITHUB_ENV"
       - name: Install SQLite
         if: matrix.sqlite3-url-version != 'default'
         run: |
+          SQLITE3_URL="$(echo '${{ matrix.sqlite3-url-version }}' | cut -f1 -d#)"
           wget -O sqlite3.tar.gz "$SQLITE3_URL"
           mkdir sqlite3
           tar -zxvf sqlite3.tar.gz --strip-components=1 -C sqlite3
@@ -77,6 +75,8 @@ jobs:
           pip install ".[dev]"
       - name: "Test"
         run: |
+          SQLITE3_VERSION="$(echo '${{ matrix.sqlite3-url-version }}' | cut -f2 -d#)"
+          LIBSQLITE3_PATH="${PWD}/lib/libsqlite3.so.0"
           coverage run -m unittest
           coverage xml
           chmod +x ./reporter/cc-test-reporter
@@ -99,5 +99,5 @@ jobs:
         run: |
           ls -R
           chmod +x ./reporter/cc-test-reporter
-          ./reporter/cc-test-reporter sum-coverage ./coverage/*.json -p 12
+          ./reporter/cc-test-reporter sum-coverage ./coverage/*.json -p 18
           ./reporter/cc-test-reporter upload-coverage

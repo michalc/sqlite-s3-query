@@ -25,7 +25,7 @@ class TestSqliteS3Query(unittest.TestCase):
         ci = os.environ.get('CI', '')
         sqlite3_version = os.environ.get('SQLITE3_VERSION', 'default')
         if ci and sqlite3_version != 'default':
-            libsqlite3 = cdll.LoadLibrary(find_library('sqlite3'))
+            libsqlite3 = get_libsqlite3()
             self.assertEqual(libsqlite3.sqlite3_libversion_number(), int(sqlite3_version))
 
     def test_without_versioning(self):
@@ -42,7 +42,7 @@ class TestSqliteS3Query(unittest.TestCase):
                 'AKIAIOSFODNN7EXAMPLE',
                 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
                 None,
-            )).__enter__()
+            ), get_libsqlite3=get_libsqlite3).__enter__()
 
     def test_select(self):
         with get_db([
@@ -57,7 +57,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'AKIAIOSFODNN7EXAMPLE',
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
-        )) as query:
+        ), get_libsqlite3=get_libsqlite3) as query:
             with query('SELECT my_col_a FROM my_table') as (columns, rows):
                 rows = list(rows)
 
@@ -68,7 +68,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'AKIAIOSFODNN7EXAMPLE',
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
-        )) as query:
+        ), get_libsqlite3=get_libsqlite3) as query:
             with \
                     query('SELECT my_col_a FROM my_table') as (columns_a, rows_a), \
                     query('SELECT my_col_b FROM my_table') as (columns_b, rows_b):
@@ -85,7 +85,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'AKIAIOSFODNN7EXAMPLE',
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
-        )) as query:
+        ), get_libsqlite3=get_libsqlite3) as query:
             with get_db([
                 ("CREATE TABLE my_table (my_col_a text, my_col_b text);", ()),
             ] + [
@@ -104,7 +104,7 @@ class TestSqliteS3Query(unittest.TestCase):
                 'AKIAIOSFODNN7EXAMPLE',
                 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
                 None,
-            )) as query:
+            ), get_libsqlite3=get_libsqlite3) as query:
                 with query('SELECT my_col_a FROM my_table') as (columns, rows):
                     for row in rows:
                         break
@@ -116,7 +116,7 @@ class TestSqliteS3Query(unittest.TestCase):
                 'AKIAIOSFODNN7EXAMPLE',
                 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
                 None,
-            )) as query:
+            ), get_libsqlite3=get_libsqlite3) as query:
                 with query('SELECT my_col_a FROM my_table') as (columns, rows):
                     pass
                 next(rows)
@@ -135,7 +135,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'AKIAIOSFODNN7EXAMPLE',
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
-        )) as query:
+        ), get_libsqlite3=get_libsqlite3) as query:
             with query('SELECT COUNT(*) FROM my_table WHERE my_col_a = :first', named_params=((':first', 'some-text-a'),)) as (columns, rows):
                 rows = list(rows)
 
@@ -162,7 +162,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'AKIAIOSFODNN7EXAMPLE',
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
-        )) as query:
+        ), get_libsqlite3=get_libsqlite3) as query:
             with query('SELECT content FROM foo ORDER BY rowid LIMIT 1') as (columns, rows):
                 for _ in rows:
                     count += 1
@@ -189,7 +189,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'AKIAIOSFODNN7EXAMPLE',
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
-        )) as query:
+        ), get_libsqlite3=get_libsqlite3) as query:
             rows_list = [
                 list(rows)
                 for (columns, rows) in query('''
@@ -206,7 +206,7 @@ class TestSqliteS3Query(unittest.TestCase):
                 'AKIAIOSFODNN7EXAMPLE',
                 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
                 None,
-            )) as query:
+            ), get_libsqlite3=get_libsqlite3) as query:
                 raise Exception('Just after creating context')
 
         with self.assertRaisesRegex(Exception, 'Just after iterating statements'):
@@ -215,7 +215,7 @@ class TestSqliteS3Query(unittest.TestCase):
                 'AKIAIOSFODNN7EXAMPLE',
                 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
                 None,
-            )) as query:
+            ), get_libsqlite3=get_libsqlite3) as query:
                 for (columns, rows) in query('''
                     SELECT my_col_a FROM my_table;
                     SELECT my_col_a FROM my_table LIMIT 10;
@@ -228,7 +228,7 @@ class TestSqliteS3Query(unittest.TestCase):
                 'AKIAIOSFODNN7EXAMPLE',
                 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
                 None,
-            )) as query:
+            ), get_libsqlite3=get_libsqlite3) as query:
                 for (columns, rows) in query('''
                     SELECT my_col_a FROM my_table;
                     SELECT my_col_a FROM my_table LIMIT 10;
@@ -242,7 +242,7 @@ class TestSqliteS3Query(unittest.TestCase):
                 'AKIAIOSFODNN7EXAMPLE',
                 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
                 None,
-            )) as query:
+            ), get_libsqlite3=get_libsqlite3) as query:
                 it = iter(query('''
                     SELECT my_col_a FROM my_table;
                     SELECT my_col_a FROM my_table LIMIT 10;
@@ -261,7 +261,7 @@ class TestSqliteS3Query(unittest.TestCase):
                 'AKIAIOSFODNN7EXAMPLE',
                 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
                 None,
-            )) as query:
+            ), get_libsqlite3=get_libsqlite3) as query:
                 for columns, rows in query('''
                     SELECT my_col_a FROM my_table;
                     SELECT my_col_a FROM my_table LIMIT 10;
@@ -284,7 +284,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'AKIAIOSFODNN7EXAMPLE',
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
-        )) as query:
+        ), get_libsqlite3=get_libsqlite3) as query:
             rows_list = [
                 list(rows)
                 for (columns, rows) in query('''
@@ -309,7 +309,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'AKIAIOSFODNN7EXAMPLE',
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
-        )) as query:
+        ), get_libsqlite3=get_libsqlite3) as query:
             rows_list = [
                 list(rows)
                 for (columns, rows) in query('''
@@ -333,7 +333,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'AKIAIOSFODNN7EXAMPLE',
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
-        )) as query:
+        ), get_libsqlite3=get_libsqlite3) as query:
             with query("SELECT my_col_a FROM my_table WHERE my_col_b = ?", params=(('d',))) as (columns, rows):
                 rows = list(rows)
 
@@ -354,7 +354,8 @@ class TestSqliteS3Query(unittest.TestCase):
                 'AKIAIOSFODNN7EXAMPLE',
                 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
                 None,
-            )
+            ),
+            get_libsqlite3=get_libsqlite3,
         )
 
         with query_my_db() as query:
@@ -372,7 +373,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'AKIAIOSFODNN7EXAMPLE',
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
-        )) as query:
+        ), get_libsqlite3=get_libsqlite3) as query:
             now = datetime.datetime.utcnow()
             with query("SELECT date('now'), time('now')") as (columns, rows):
                 rows = list(rows)
@@ -389,7 +390,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'AKIAIOSFODNN7EXAMPLE',
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
-        )) as query:
+        ), get_libsqlite3=get_libsqlite3) as query:
             with self.assertRaisesRegex(Exception, 'no such table: non_table'):
                 query("SELECT * FROM non_table").__enter__()
 
@@ -401,7 +402,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'AKIAIOSFODNN7EXAMPLE',
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
-        )) as query:
+        ), get_libsqlite3=get_libsqlite3) as query:
             with self.assertRaisesRegex(Exception, 'disk I/O error'):
                 query('SELECT 1').__enter__()
 
@@ -413,7 +414,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'AKIAIOSFODNN7EXAMPLE',
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
-        )) as query:
+        ), get_libsqlite3=get_libsqlite3) as query:
             with self.assertRaisesRegex(Exception, 'disk I/O error'):
                 query("SELECT * FROM non_table").__enter__()
 
@@ -431,7 +432,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'AKIAIOSFODNN7EXAMPLE',
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
-        )) as query:
+        ), get_libsqlite3=get_libsqlite3) as query:
             with self.assertRaisesRegex(Exception, 'database disk image is malformed'):
                 with query("SELECT * FROM my_table") as (columns, rows):
                     list(rows)
@@ -486,7 +487,7 @@ class TestSqliteS3Query(unittest.TestCase):
                 'AKIAIOSFODNN7EXAMPLE',
                 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
                 None,
-            ), get_http_client=get_http_client) as query:
+            ), get_http_client=get_http_client, get_libsqlite3=get_libsqlite3) as query:
                 with query('SELECT my_col_a FROM my_table') as (columns, rows):
                     rows = list(rows)
 
@@ -527,7 +528,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'AKIAIOSFODNN7EXAMPLE',
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
-        ), get_http_client=get_http_client) as query:
+        ), get_http_client=get_http_client, get_libsqlite3=get_libsqlite3) as query:
             with query('SELECT my_col_a FROM my_table') as (cols, rows):
                 for row in rows:
                     rows_count += 1
@@ -563,7 +564,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'AKIAIOSFODNN7EXAMPLE',
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
-        ), get_http_client=get_http_client) as query:
+        ), get_http_client=get_http_client, get_libsqlite3=get_libsqlite3) as query:
             with query('SELECT my_col_a FROM my_table ORDER BY my_col_a') as (cols, rows):
                 for row in rows:
                     rows_count += 1
@@ -645,7 +646,7 @@ class TestSqliteS3Query(unittest.TestCase):
                 'AKIAIOSFODNN7EXAMPLE',
                 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
                 None,
-            ), get_http_client=get_http_client) as query:
+            ), get_http_client=get_http_client, get_libsqlite3=get_libsqlite3) as query:
                 with self.assertRaisesRegex(Exception, 'disk I/O error'):
                     query('SELECT my_col_a FROM my_table').__enter__()
 
@@ -695,7 +696,10 @@ class TestSqliteS3Query(unittest.TestCase):
                     'AKIAIOSFODNN7EXAMPLE',
                     'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
                     None,
-                ), get_http_client=get_http_client).__enter__()
+                ), get_http_client=get_http_client, get_libsqlite3=get_libsqlite3).__enter__()
+
+def get_libsqlite3():
+    return cdll.LoadLibrary(os.environ.get('LIBSQLITE3_PATH', find_library('sqlite3')))
 
 def put_object_without_versioning(bucket, key, content):
     create_bucket(bucket)
