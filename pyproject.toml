@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sqlite-s3-query"
+version = "0.0.74"
+authors = [
+  { name="Michal Charemza", email="michal@charemza.name" },
+]
+description = "Python context manager to query a SQLite file stored on S3"
+readme = "README.md"
+requires-python = ">=3.6.0"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "httpx>=0.18.2",
+]
+
+[project.urls]
+"Home-page" = "https://github.com/michalc/sqlite-s3-query"
+
+[tool.hatch.build]
+include = [
+  "sqlite_s3_query.py"
+]
