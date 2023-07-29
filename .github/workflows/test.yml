@@ -1,0 +1,103 @@
+name: Test
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Download coverage reporter"
+        run: |
+          mkdir -p ./reporter
+          curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./reporter/cc-test-reporter
+      - name: "Notify code climate of pending coverage upload"
+        env:
+          CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
+        run: |
+          chmod +x ./reporter/cc-test-reporter
+          ./reporter/cc-test-reporter before-build
+      - name: "Save reporter"
+        uses: actions/upload-artifact@v3
+        with:
+          name: reporter
+          path: ./reporter/cc-test-reporter
+
+  test:
+    name: Test
+    needs: download
+    strategy:
+      matrix:
+        sqlite3-url-version:
+          - "https://www.sqlite.org/src/tarball/5c9a6c06/SQLite-5c9a6c06.tar.gz#3036000"
+          - "https://www.sqlite.org/src/tarball/cd0b37c5/SQLite-cd0b37c5.tar.gz#3007015"
+          - "default"
+        os-and-python-version:
+          - {os: "ubuntu-20.04", python: "3.6.7"}
+          - {os: "ubuntu-20.04", python: "3.7.1"}
+          - {os: "ubuntu-20.04", python: "3.8.0"}
+          - {os: "ubuntu-20.04", python: "3.9.0"}
+    runs-on: '${{ matrix.os-and-python-version.os }}'
+    steps:
+      - name: "Checkout"
+        uses: "actions/checkout@v3"
+      - uses: "actions/setup-python@v4"
+        with:
+          python-version: '${{ matrix.os-and-python-version.python }}'
+      - name: "Run MinIO"
+        run: |
+          ./start-services.sh
+      - uses: actions/download-artifact@v3
+        with:
+          name: reporter
+          path: ./reporter
+      - name: "Set environment variables"
+        run: |
+          echo 'SQLITE3_URL='$(echo '${{ matrix.sqlite3-url-version }}' | cut -f1 -d#) >> "$GITHUB_ENV"
+          echo 'SQLITE3_VERSION='$(echo '${{ matrix.sqlite3-url-version }}' | cut -f2 -d#) >> "$GITHUB_ENV"
+          echo 'LD_LIBRARY_PATH='"$PWD"'/lib' >> "$GITHUB_ENV"
+      - name: Install SQLite
+        if: matrix.sqlite3-url-version != 'default'
+        run: |
+          wget -O sqlite3.tar.gz "$SQLITE3_URL"
+          mkdir sqlite3
+          tar -zxvf sqlite3.tar.gz --strip-components=1 -C sqlite3
+          mkdir ./lib
+          (
+            cd sqlite3
+            ./configure
+            make sqlite3.c
+            gcc -shared -fPIC -o libsqlite3.so.0 sqlite3.c
+            mv libsqlite3.so.0 ../lib
+          )
+      - name: "Install sqlite-s3-query and any dependencies"
+        run: |
+          pip install ".[dev]"
+      - name: "Test"
+        run: |
+          coverage run -m unittest
+          coverage xml
+          chmod +x ./reporter/cc-test-reporter
+          COVERAGE_FILE_NAME="./coverage/${{ matrix.os-and-python-version.python }}-$(echo '${{ matrix.sqlite3-url-version }}' | md5sum | cut -d ' ' -f 1).json"
+          ./reporter/cc-test-reporter format-coverage --output "$COVERAGE_FILE_NAME"
+      - name: "Save code coverage"
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage
+          path: ./coverage/*.json
+
+  upload:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/download-artifact@v3
+      - name: "Upload coverage"
+        env:
+          CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
+        run: |
+          ls -R
+          chmod +x ./reporter/cc-test-reporter
+          ./reporter/cc-test-reporter sum-coverage ./coverage/*.json -p 12
+          ./reporter/cc-test-reporter upload-coverage
