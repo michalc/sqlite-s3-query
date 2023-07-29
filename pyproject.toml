@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sqlite-s3-query"
-version = "0.0.74"
+version = "0.0.0.dev0"
 authors = [
   { name="Michal Charemza", email="michal@charemza.name" },
 ]
