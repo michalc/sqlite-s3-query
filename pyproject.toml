@@ -20,6 +20,11 @@ dependencies = [
     "httpx>=0.18.2",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "coverage",
+]
+
 [project.urls]
 "Home-page" = "https://github.com/michalc/sqlite-s3-query"
 
