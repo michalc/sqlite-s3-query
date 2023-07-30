@@ -6,7 +6,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  download:
+  download-coverage-reporter:
     runs-on: ubuntu-latest
     steps:
       - name: "Download coverage reporter"
@@ -25,16 +25,43 @@ jobs:
           name: reporter
           path: ./reporter/cc-test-reporter
 
-  test:
-    name: Test
-    needs: download
+  # We want older SQLite amalgamation files, but they are not available to download,
+  # so must be built from source. And they cannot be build on Windows, even for tests
+  # that then compile the amalgamation on Windows
+  create-sqlite-amalgamation:
+    name: "Create SQLite amalgamation"
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        sqlite3-url-version:
-          - {url: "https://www.sqlite.org/src/tarball/831d0fb2/SQLite-831d0fb2.tar.gz", version: "3042000"}
-          - {url: "https://www.sqlite.org/src/tarball/5c9a6c06/SQLite-5c9a6c06.tar.gz", version: "3036000"}
-          - {url: "https://www.sqlite.org/src/tarball/cd0b37c5/SQLite-cd0b37c5.tar.gz", version: "3007015"}
-          - {url: "default", version: "default"}
+        sqlite-url-version:
+          - {version: "3042000", url: "https://www.sqlite.org/src/tarball/831d0fb2/SQLite-831d0fb2.tar.gz"}
+          - {version: "3036000", url: "https://www.sqlite.org/src/tarball/5c9a6c06/SQLite-5c9a6c06.tar.gz"}
+          - {version: "3007015", url: "https://www.sqlite.org/src/tarball/cd0b37c5/SQLite-cd0b37c5.tar.gz"}
+    steps:
+      - name: "Download SQLite source and build amalgamation"
+        run: |
+          wget -O sqlite3.tar.gz '${{ matrix.sqlite-url-version.url }}'
+          mkdir sqlite3
+          tar -zxvf sqlite3.tar.gz --strip-components=1 -C sqlite3
+          cd sqlite3
+          ./configure
+          make sqlite3.c
+      - name: "Save SQLite amalgamation"
+        uses: actions/upload-artifact@v3
+        with:
+          name: sqlite-${{ matrix.sqlite-url-version.version }}
+          path: ./sqlite3/sqlite3.c
+
+  test:
+    name: Test
+    needs: [download-coverage-reporter, create-sqlite-amalgamation]
+    strategy:
+      matrix:
+        sqlite-version:
+          - "3042000"
+          - "3036000"
+          - "3007015"
+          - "default"
         os-and-python-version:
           - {os: "ubuntu-20.04", python: "3.6.7"}
           - {os: "ubuntu-20.04", python: "3.7.1"}
@@ -56,20 +83,18 @@ jobs:
         with:
           name: reporter
           path: ./reporter
-      - name: Install SQLite
-        if: matrix.sqlite3-url-version.version != 'default'
+      - name: "Load SQLite amalgamation"
+        if: matrix.sqlite-version != 'default'
+        uses: actions/download-artifact@v3
+        with:
+          name: sqlite-${{ matrix.sqlite-version }}
+          path: .
+      - name: "Compile SQLite from amalgamation"
+        if: matrix.sqlite-version != 'default'
         run: |
-          wget -O sqlite3.tar.gz '${{ matrix.sqlite3-url-version.url }}'
-          mkdir sqlite3
-          tar -zxvf sqlite3.tar.gz --strip-components=1 -C sqlite3
-          (
-            cd sqlite3
-            ./configure
-            make sqlite3.c
-            gcc -shared -fPIC -o libsqlite3.so.0 sqlite3.c
-          )
-          echo "SQLITE3_VERSION=${{ matrix.sqlite3-url-version.version }}" >> "$GITHUB_ENV"
-          echo "LIBSQLITE3_PATH=${PWD}/sqlite3/libsqlite3.so.0" >> "$GITHUB_ENV"
+          gcc -shared -fPIC -o libsqlite3.so.0 sqlite3.c
+          echo "SQLITE3_VERSION=${{ matrix.sqlite-version }}" >> "$GITHUB_ENV"
+          echo "LIBSQLITE3_PATH=${PWD}/libsqlite3.so.0" >> "$GITHUB_ENV"
       - name: "Install sqlite-s3-query and any dependencies"
         run: |
           pip install ".[dev]"
@@ -78,7 +103,7 @@ jobs:
           coverage run -m unittest
           coverage xml
           chmod +x ./reporter/cc-test-reporter
-          COVERAGE_FILE_NAME="./coverage/${{ matrix.os-and-python-version.python }}-${{ matrix.sqlite3-url-version.version }}.json"
+          COVERAGE_FILE_NAME="./coverage/${{ matrix.os-and-python-version.python }}-${{ matrix.sqlite-version }}.json"
           ./reporter/cc-test-reporter format-coverage --output "$COVERAGE_FILE_NAME"
       - name: "Save code coverage"
         uses: actions/upload-artifact@v3
