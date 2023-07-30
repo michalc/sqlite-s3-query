@@ -78,7 +78,13 @@ jobs:
           python-version: '${{ matrix.os-and-python-version.python }}'
       - name: "Run MinIO"
         run: |
-          ./start-services.sh
+          wget -O minio https://dl.min.io/server/minio/release/linux-amd64/archive/minio.RELEASE.2023-07-21T21-12-44Z
+          chmod +x minio
+          mkdir -p ./data
+          export MINIO_ROOT_USER=AKIAIOSFODNN7EXAMPLE
+          export MINIO_ROOT_PASSWORD=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+          export MINIO_REGION=us-east-1
+          ./minio server ${PWD}/data &
       - uses: actions/download-artifact@v3
         with:
           name: reporter
