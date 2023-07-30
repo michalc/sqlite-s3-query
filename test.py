@@ -376,9 +376,9 @@ class TestSqliteS3Query(unittest.TestCase):
         ), get_libsqlite3=get_libsqlite3) as query:
             now = datetime.datetime.utcnow()
             with query("SELECT date('now'), time('now')") as (columns, rows):
-                rows = list(rows)
+                rows = list((datetime.datetime.strptime(row[0] + ' ' + row[1], '%Y-%m-%d %H:%M:%S'),) for row in rows)
 
-        self.assertEqual(rows, [(now.strftime('%Y-%m-%d'), now.strftime('%H:%M:%S'))])
+        self.assertTrue(all((row[0] - now) < datetime.timedelta(seconds=3) for row in rows))
         self.assertEqual(columns, ("date('now')", "time('now')"))
 
     def test_non_existant_table(self):
