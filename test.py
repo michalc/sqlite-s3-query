@@ -829,8 +829,9 @@ def aws_sigv4_headers(access_key_id, secret_access_key, pre_auth_headers,
 
 @contextmanager
 def get_db(sqls):
-    with tempfile.NamedTemporaryFile() as fp:
-        with sqlite3.connect(fp.name, isolation_level=None) as con:
+    with tempfile.TemporaryDirectory() as directory_name:
+        db_path = os.path.join(directory_name, 'sqlite-s3-query-test.db')
+        with sqlite3.connect(db_path, isolation_level=None) as con:
             cur = con.cursor()
             cur.execute('BEGIN')
             for sql, params in sqls:
@@ -838,7 +839,7 @@ def get_db(sqls):
             cur.execute('COMMIT')
 
         def db():
-            with open(fp.name, 'rb') as f:
+            with open(db_path, 'rb') as f:
                 while True:
                     chunk = f.read(65536)
                     if not chunk:

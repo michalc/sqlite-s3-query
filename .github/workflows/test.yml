@@ -70,21 +70,16 @@ jobs:
           - {os: "ubuntu-20.04", python: "3.10.0"}
           - {os: "ubuntu-20.04", python: "3.11.0"}
     runs-on: '${{ matrix.os-and-python-version.os }}'
+    env:
+      MINIO_ROOT_USER: AKIAIOSFODNN7EXAMPLE
+      MINIO_ROOT_PASSWORD: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+      MINIO_REGION: us-east-1
     steps:
       - name: "Checkout"
         uses: "actions/checkout@v3"
       - uses: "actions/setup-python@v4"
         with:
           python-version: '${{ matrix.os-and-python-version.python }}'
-      - name: "Run MinIO"
-        run: |
-          wget -O minio https://dl.min.io/server/minio/release/linux-amd64/archive/minio.RELEASE.2023-07-21T21-12-44Z
-          chmod +x minio
-          mkdir -p ./data
-          export MINIO_ROOT_USER=AKIAIOSFODNN7EXAMPLE
-          export MINIO_ROOT_PASSWORD=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-          export MINIO_REGION=us-east-1
-          ./minio server ${PWD}/data &
       - uses: actions/download-artifact@v3
         with:
           name: reporter
@@ -106,6 +101,11 @@ jobs:
           pip install ".[dev]"
       - name: "Test"
         run: |
+          wget -O minio https://dl.min.io/server/minio/release/linux-amd64/archive/minio.RELEASE.2023-07-21T21-12-44Z
+          chmod +x minio
+          mkdir -p ./data
+          ./minio server ./data &
+          timeout 22 sh -c 'until nc -z $0 $1; do sleep 1; done' 127.0.0.1 9000
           coverage run -m unittest
           coverage xml
           chmod +x ./reporter/cc-test-reporter
