@@ -218,3 +218,10 @@ with \
 ### Multithreading
 
 It is safe for multiple threads to call the same `query` function. Under the hood, each use of `query` uses a separate SQLite "connection" to the database combined with the`SQLITE_OPEN_NOMUTEX` flag, which makes this safe while not locking unnecessarily.
+
+
+## Compatibility
+
+- Linux (tested on Ubuntu 20.04), Windows (tested on Windows Server 2019), or macOS (tested on macOS 11)
+- SQLite >= 3.7.15, (tested on 3.7.15, 3.36.0, 3.42.0, and the default version available on each OS tested)
+- Python >= 3.6.7 (tested on 3.6.7, 3.7.1, 3.8.0, 3.9.0, 3.10.0, and 3.11.0)
