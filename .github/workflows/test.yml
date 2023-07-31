@@ -13,6 +13,7 @@ jobs:
         run: |
           mkdir -p ./reporter
           curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./reporter/cc-test-reporter-linux
+          curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-darwin-amd64 > ./reporter/cc-test-reporter-darwin
           curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-windows-amd64 > ./reporter/cc-test-reporter-windows.exe
       - name: "Notify code climate of pending coverage upload"
         env:
@@ -59,6 +60,7 @@ jobs:
     strategy:
       matrix:
         os:
+          - "macos-11"
           - "ubuntu-20.04"
           - "windows-2019"
         sqlite-version:
@@ -100,8 +102,8 @@ jobs:
         run: |
           gcc -shared sqlite3.c -o sqlite3.dll
           echo "LIBSQLITE3_PATH=${PWD}/sqlite3.dll" >> $env:GITHUB_ENV
-      - name: "Compile SQLite from amalgamation (Ubuntu)"
-        if: matrix.os == 'ubuntu-20.04' && matrix.sqlite-version != 'default'
+      - name: "Compile SQLite from amalgamation (Ubuntu or macOS)"
+        if: (matrix.os == 'ubuntu-20.04' || matrix.os == 'macos-11') && matrix.sqlite-version != 'default'
         run: |
           gcc -shared -fPIC -o libsqlite3.so.0 sqlite3.c
           echo "LIBSQLITE3_PATH=${PWD}/libsqlite3.so.0" >> "$GITHUB_ENV"
@@ -128,12 +130,25 @@ jobs:
           chmod +x minio
           mkdir -p ./data
           ./minio server ./data &
-          timeout 22 sh -c 'until nc -z $0 $1; do sleep 1; done' 127.0.0.1 9000
+          until nc -w 10 127.0.0.1 9000; do sleep 1; done
           coverage run -m unittest
           coverage xml
           chmod +x ./reporter/cc-test-reporter-linux
           COVERAGE_FILE_NAME="./coverage/${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.sqlite-version }}.json"
           ./reporter/cc-test-reporter-linux format-coverage --output "$COVERAGE_FILE_NAME"
+      - name: "Test (macOS)"
+        if: matrix.os == 'macos-11'
+        run: |
+          wget -O minio https://dl.min.io/server/minio/release/darwin-amd64/archive/minio.RELEASE.2023-07-21T21-12-44Z
+          chmod +x minio
+          mkdir -p ./data
+          ./minio server ./data &
+          until nc -w 10 127.0.0.1 9000; do sleep 1; done
+          coverage run -m unittest
+          coverage xml
+          chmod +x ./reporter/cc-test-reporter-darwin
+          COVERAGE_FILE_NAME="./coverage/${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.sqlite-version }}.json"
+          ./reporter/cc-test-reporter-darwin format-coverage --output "$COVERAGE_FILE_NAME"
       - name: "Save code coverage"
         uses: actions/upload-artifact@v3
         with:
@@ -151,5 +166,5 @@ jobs:
         run: |
           ls -R
           chmod +x ./reporter/cc-test-reporter-linux
-          ./reporter/cc-test-reporter-linux sum-coverage ./coverage/*.json -p 48
+          ./reporter/cc-test-reporter-linux sum-coverage ./coverage/*.json -p 72
           ./reporter/cc-test-reporter-linux upload-coverage
