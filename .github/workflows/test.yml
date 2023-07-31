@@ -58,26 +58,24 @@ jobs:
     needs: [download-coverage-reporter, create-sqlite-amalgamation]
     strategy:
       matrix:
+        os:
+          - "ubuntu-20.04"
+          - "windows-2019"
         sqlite-version:
           - "3042000"
           - "3036000"
           - "3007015"
           - "default"
-        os-and-python-version:
-          - {os: "ubuntu-20.04", python: "3.6.7"}
-          - {os: "ubuntu-20.04", python: "3.7.1"}
-          - {os: "ubuntu-20.04", python: "3.8.0"}
-          - {os: "ubuntu-20.04", python: "3.9.0"}
-          - {os: "ubuntu-20.04", python: "3.10.0"}
-          - {os: "ubuntu-20.04", python: "3.11.0"}
-          - {os: "windows-2019", python: "3.6.7"}
-          - {os: "windows-2019", python: "3.7.1"}
-          - {os: "windows-2019", python: "3.8.0"}
-          - {os: "windows-2019", python: "3.9.0"}
-          - {os: "windows-2019", python: "3.10.0"}
-          - {os: "windows-2019", python: "3.11.0"}
-    runs-on: '${{ matrix.os-and-python-version.os }}'
+        python-version:
+          - "3.6.7"
+          - "3.7.1"
+          - "3.8.0"
+          - "3.9.0"
+          - "3.10.0"
+          - "3.11.0"
+    runs-on: '${{ matrix.os }}'
     env:
+      SQLITE3_VERSION: ${{ matrix.sqlite-version }}
       MINIO_ROOT_USER: AKIAIOSFODNN7EXAMPLE
       MINIO_ROOT_PASSWORD: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
       MINIO_REGION: us-east-1
@@ -86,7 +84,7 @@ jobs:
         uses: "actions/checkout@v3"
       - uses: "actions/setup-python@v4"
         with:
-          python-version: '${{ matrix.os-and-python-version.python }}'
+          python-version: '${{ matrix.python-version }}'
       - uses: actions/download-artifact@v3
         with:
           name: reporter
@@ -98,22 +96,20 @@ jobs:
           name: sqlite-${{ matrix.sqlite-version }}
           path: .
       - name: "Compile SQLite from amalgamation (Windows)"
-        if: matrix.os-and-python-version.os == 'windows-2019' && matrix.sqlite-version != 'default'
+        if: matrix.os == 'windows-2019' && matrix.sqlite-version != 'default'
         run: |
           gcc -shared sqlite3.c -o sqlite3.dll
-          echo "SQLITE3_VERSION=${{ matrix.sqlite-version }}" >> $env:GITHUB_ENV
           echo "LIBSQLITE3_PATH=${PWD}/sqlite3.dll" >> $env:GITHUB_ENV
       - name: "Compile SQLite from amalgamation (Ubuntu)"
-        if: matrix.os-and-python-version.os == 'ubuntu-20.04' && matrix.sqlite-version != 'default'
+        if: matrix.os == 'ubuntu-20.04' && matrix.sqlite-version != 'default'
         run: |
           gcc -shared -fPIC -o libsqlite3.so.0 sqlite3.c
-          echo "SQLITE3_VERSION=${{ matrix.sqlite-version }}" >> "$GITHUB_ENV"
           echo "LIBSQLITE3_PATH=${PWD}/libsqlite3.so.0" >> "$GITHUB_ENV"
       - name: "Install sqlite-s3-query and any dependencies"
         run: |
           pip install ".[dev]"
       - name: "Test (Windows)"
-        if: matrix.os-and-python-version.os == 'windows-2019'
+        if: matrix.os == 'windows-2019'
         run: |
           Invoke-WebRequest -Uri "https://dl.min.io/server/minio/release/windows-amd64/archive/minio.RELEASE.2023-07-21T21-12-44Z" -OutFile "./minio.exe"
           mkdir -p ./data
@@ -124,9 +120,9 @@ jobs:
           } until(Test-NetConnection 127.0.0.1 -Port 9000 | ? { $_.TcpTestSucceeded } )
           coverage run -m unittest
           coverage xml
-          ./reporter/cc-test-reporter-windows.exe format-coverage --output "./coverage/${{ matrix.os-and-python-version.os }}-${{ matrix.os-and-python-version.python }}-${{ matrix.sqlite-version }}.json"
+          ./reporter/cc-test-reporter-windows.exe format-coverage --output "./coverage/${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.sqlite-version }}.json"
       - name: "Test (Ubuntu)"
-        if: matrix.os-and-python-version.os == 'ubuntu-20.04'
+        if: matrix.os == 'ubuntu-20.04'
         run: |
           wget -O minio https://dl.min.io/server/minio/release/linux-amd64/archive/minio.RELEASE.2023-07-21T21-12-44Z
           chmod +x minio
@@ -136,7 +132,7 @@ jobs:
           coverage run -m unittest
           coverage xml
           chmod +x ./reporter/cc-test-reporter-linux
-          COVERAGE_FILE_NAME="./coverage/${{ matrix.os-and-python-version.os }}-${{ matrix.os-and-python-version.python }}-${{ matrix.sqlite-version }}.json"
+          COVERAGE_FILE_NAME="./coverage/${{ matrix.os }}-${{ matrix.python-version }}-${{ matrix.sqlite-version }}.json"
           ./reporter/cc-test-reporter-linux format-coverage --output "$COVERAGE_FILE_NAME"
       - name: "Save code coverage"
         uses: actions/upload-artifact@v3
