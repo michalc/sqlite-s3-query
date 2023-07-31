@@ -9,21 +9,22 @@ jobs:
   download-coverage-reporter:
     runs-on: ubuntu-latest
     steps:
-      - name: "Download coverage reporter"
+      - name: "Download coverage reporters"
         run: |
           mkdir -p ./reporter
-          curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./reporter/cc-test-reporter
+          curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./reporter/cc-test-reporter-linux
+          curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-windows-amd64 > ./reporter/cc-test-reporter-windows.exe
       - name: "Notify code climate of pending coverage upload"
         env:
           CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
         run: |
-          chmod +x ./reporter/cc-test-reporter
-          ./reporter/cc-test-reporter before-build
-      - name: "Save reporter"
+          chmod +x ./reporter/cc-test-reporter-linux
+          ./reporter/cc-test-reporter-linux before-build
+      - name: "Save reporters"
         uses: actions/upload-artifact@v3
         with:
           name: reporter
-          path: ./reporter/cc-test-reporter
+          path: ./reporter/*
 
   # We want older SQLite amalgamation files, but they are not available to download,
   # so must be built from source. And they cannot be build on Windows, even for tests
@@ -69,6 +70,12 @@ jobs:
           - {os: "ubuntu-20.04", python: "3.9.0"}
           - {os: "ubuntu-20.04", python: "3.10.0"}
           - {os: "ubuntu-20.04", python: "3.11.0"}
+          - {os: "windows-2019", python: "3.6.7"}
+          - {os: "windows-2019", python: "3.7.1"}
+          - {os: "windows-2019", python: "3.8.0"}
+          - {os: "windows-2019", python: "3.9.0"}
+          - {os: "windows-2019", python: "3.10.0"}
+          - {os: "windows-2019", python: "3.11.0"}
     runs-on: '${{ matrix.os-and-python-version.os }}'
     env:
       MINIO_ROOT_USER: AKIAIOSFODNN7EXAMPLE
@@ -90,8 +97,14 @@ jobs:
         with:
           name: sqlite-${{ matrix.sqlite-version }}
           path: .
-      - name: "Compile SQLite from amalgamation"
-        if: matrix.sqlite-version != 'default'
+      - name: "Compile SQLite from amalgamation (Windows)"
+        if: matrix.os-and-python-version.os == 'windows-2019' && matrix.sqlite-version != 'default'
+        run: |
+          gcc -shared sqlite3.c -o sqlite3.dll
+          echo "SQLITE3_VERSION=${{ matrix.sqlite-version }}" >> $env:GITHUB_ENV
+          echo "LIBSQLITE3_PATH=${PWD}/sqlite3.dll" >> $env:GITHUB_ENV
+      - name: "Compile SQLite from amalgamation (Ubuntu)"
+        if: matrix.os-and-python-version.os == 'ubuntu-20.04' && matrix.sqlite-version != 'default'
         run: |
           gcc -shared -fPIC -o libsqlite3.so.0 sqlite3.c
           echo "SQLITE3_VERSION=${{ matrix.sqlite-version }}" >> "$GITHUB_ENV"
@@ -99,7 +112,21 @@ jobs:
       - name: "Install sqlite-s3-query and any dependencies"
         run: |
           pip install ".[dev]"
-      - name: "Test"
+      - name: "Test (Windows)"
+        if: matrix.os-and-python-version.os == 'windows-2019'
+        run: |
+          Invoke-WebRequest -Uri "https://dl.min.io/server/minio/release/windows-amd64/archive/minio.RELEASE.2023-07-21T21-12-44Z" -OutFile "./minio.exe"
+          mkdir -p ./data
+          ./minio.exe server ./data &
+          do {
+            Write-Host "Waiting for MinIO"
+            sleep 3
+          } until(Test-NetConnection 127.0.0.1 -Port 9000 | ? { $_.TcpTestSucceeded } )
+          coverage run -m unittest
+          coverage xml
+          ./reporter/cc-test-reporter-windows.exe format-coverage --output "./coverage/${{ matrix.os-and-python-version.os }}-${{ matrix.os-and-python-version.python }}-${{ matrix.sqlite-version }}.json"
+      - name: "Test (Ubuntu)"
+        if: matrix.os-and-python-version.os == 'ubuntu-20.04'
         run: |
           wget -O minio https://dl.min.io/server/minio/release/linux-amd64/archive/minio.RELEASE.2023-07-21T21-12-44Z
           chmod +x minio
@@ -108,9 +135,9 @@ jobs:
           timeout 22 sh -c 'until nc -z $0 $1; do sleep 1; done' 127.0.0.1 9000
           coverage run -m unittest
           coverage xml
-          chmod +x ./reporter/cc-test-reporter
-          COVERAGE_FILE_NAME="./coverage/${{ matrix.os-and-python-version.python }}-${{ matrix.sqlite-version }}.json"
-          ./reporter/cc-test-reporter format-coverage --output "$COVERAGE_FILE_NAME"
+          chmod +x ./reporter/cc-test-reporter-linux
+          COVERAGE_FILE_NAME="./coverage/${{ matrix.os-and-python-version.os }}-${{ matrix.os-and-python-version.python }}-${{ matrix.sqlite-version }}.json"
+          ./reporter/cc-test-reporter-linux format-coverage --output "$COVERAGE_FILE_NAME"
       - name: "Save code coverage"
         uses: actions/upload-artifact@v3
         with:
@@ -127,6 +154,6 @@ jobs:
           CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
         run: |
           ls -R
-          chmod +x ./reporter/cc-test-reporter
-          ./reporter/cc-test-reporter sum-coverage ./coverage/*.json -p 24
-          ./reporter/cc-test-reporter upload-coverage
+          chmod +x ./reporter/cc-test-reporter-linux
+          ./reporter/cc-test-reporter-linux sum-coverage ./coverage/*.json -p 48
+          ./reporter/cc-test-reporter-linux upload-coverage

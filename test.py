@@ -690,7 +690,7 @@ class TestSqliteS3Query(unittest.TestCase):
             put_object_with_versioning('my-bucket', 'my.db', db)
 
         with server() as server_sock:
-            with self.assertRaisesRegex(Exception, 'Server disconnected|Connection reset'):
+            with self.assertRaisesRegex(Exception, 'Server disconnected|Connection reset|WinError 10053|WinError 10054'):
                 sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
                     'us-east-1',
                     'AKIAIOSFODNN7EXAMPLE',
@@ -837,6 +837,9 @@ def get_db(sqls):
             for sql, params in sqls:
                 cur.execute(sql, params)
             cur.execute('COMMIT')
+
+        # Really close the file, especially on Windows
+        del cur, con
 
         def db():
             with open(db_path, 'rb') as f:

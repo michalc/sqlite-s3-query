@@ -35,7 +35,7 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
     SQLITE_NOTFOUND = 12
     SQLITE_ROW = 100
     SQLITE_DONE = 101
-    SQLITE_TRANSIENT = -1
+    SQLITE_TRANSIENT = c_void_p(-1)
     SQLITE_OPEN_READONLY = 0x00000001
     SQLITE_OPEN_NOMUTEX = 0x00008000
     SQLITE_IOCAP_IMMUTABLE = 0x00002000
@@ -61,6 +61,8 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
         ),
         5: lambda pp_stmt, i: None,
     }
+
+    libsqlite3.sqlite3_initialize()
 
     vfs_name = b's3-' + str(uuid4()).encode()
     file_name = b's3-' + str(uuid4()).encode()
