@@ -295,11 +295,7 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
                 raise Exception('Attempting to use finalized statement') from None
 
         def finalize(statement):
-            # In case there are errors, don't attempt to re-finalize the same statement
-            try:
-                pp_stmt = statements.pop(statement)
-            except KeyError:
-                return
+            pp_stmt = statements.pop(statement)
 
             try:
                 run_with_db(db, libsqlite3.sqlite3_finalize, pp_stmt)
