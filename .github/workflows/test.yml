@@ -59,7 +59,7 @@ jobs:
     steps:
       - name: "Download SQLite source and build amalgamation"
         run: |
-          wget -O sqlite3.tar.gz '${{ matrix.sqlite-url-version.url }}'
+          curl -sS -L '${{ matrix.sqlite-url-version.url }}' -o sqlite3.tar.gz
           mkdir sqlite3
           tar -zxvf sqlite3.tar.gz --strip-components=1 -C sqlite3
           cd sqlite3
