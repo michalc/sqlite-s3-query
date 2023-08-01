@@ -323,11 +323,7 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
                 statements[statement] = pp_stmt
                 yield partial(get_pp_stmt, statement), partial(finalize, statement)
 
-        try:
-            yield get_pp_stmts
-        finally:
-            for statement in statements.copy().keys():
-                finalize(statement)
+        yield get_pp_stmts
 
     def rows(get_pp_stmt, columns):
         while True:
