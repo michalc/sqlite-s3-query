@@ -28,6 +28,22 @@ jobs:
           name: reporter
           path: ./reporter/*
 
+  download-minio:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Download MinIO"
+        run: |
+          mkdir -p ./minio
+          curl -sS -L \
+            https://dl.min.io/server/minio/release/linux-amd64/archive/minio.RELEASE.2023-07-21T21-12-44Z -o ./minio/minio-linux \
+            https://dl.min.io/server/minio/release/darwin-amd64/archive/minio.RELEASE.2023-07-21T21-12-44Z -o ./minio/minio-darwin \
+            https://dl.min.io/server/minio/release/windows-amd64/archive/minio.RELEASE.2023-07-21T21-12-44Z -o ./minio/minio-windows.exe
+      - name: "Save MinIO"
+        uses: actions/upload-artifact@v3
+        with:
+          name: minio
+          path: ./minio/*
+
   # We want older SQLite amalgamation files, but they are not available to download,
   # so must be built from source. And they cannot be build on Windows, even for tests
   # that then compile the amalgamation on Windows
@@ -57,7 +73,7 @@ jobs:
 
   test:
     name: Test
-    needs: [download-coverage-reporter, create-sqlite-amalgamation]
+    needs: [download-coverage-reporter, download-minio, create-sqlite-amalgamation]
     strategy:
       matrix:
         os:
@@ -88,10 +104,16 @@ jobs:
       - uses: "actions/setup-python@v4"
         with:
           python-version: '${{ matrix.python-version }}'
-      - uses: actions/download-artifact@v3
+      - name: "Load reporter"
+        uses: actions/download-artifact@v3
         with:
           name: reporter
           path: ./reporter
+      - name: "Load MinIO"
+        uses: actions/download-artifact@v3
+        with:
+          name: minio
+          path: ./minio
       - name: "Load SQLite amalgamation"
         if: matrix.sqlite-version != 'default'
         uses: actions/download-artifact@v3
@@ -114,9 +136,8 @@ jobs:
       - name: "Test (Windows)"
         if: matrix.os == 'windows-2019'
         run: |
-          Invoke-WebRequest -Uri "https://dl.min.io/server/minio/release/windows-amd64/archive/minio.RELEASE.2023-07-21T21-12-44Z" -OutFile "./minio.exe"
           mkdir -p ./data
-          ./minio.exe server ./data &
+          ./minio/minio-windows.exe server ./data &
           do {
             Write-Host "Waiting for MinIO"
             sleep 3
@@ -127,10 +148,9 @@ jobs:
       - name: "Test (Ubuntu)"
         if: matrix.os == 'ubuntu-20.04'
         run: |
-          wget -O minio https://dl.min.io/server/minio/release/linux-amd64/archive/minio.RELEASE.2023-07-21T21-12-44Z
-          chmod +x minio
           mkdir -p ./data
-          ./minio server ./data &
+          chmod +x ./minio/minio-linux
+          ./minio/minio-linux server ./data &
           until nc -w 10 127.0.0.1 9000; do sleep 1; done
           coverage run -m unittest
           coverage xml
@@ -140,10 +160,9 @@ jobs:
       - name: "Test (macOS)"
         if: matrix.os == 'macos-11'
         run: |
-          wget -O minio https://dl.min.io/server/minio/release/darwin-amd64/archive/minio.RELEASE.2023-07-21T21-12-44Z
-          chmod +x minio
           mkdir -p ./data
-          ./minio server ./data &
+          chmod +x ./minio/minio-darwin
+          ./minio/minio-darwin server ./data &
           until nc -w 10 127.0.0.1 9000; do sleep 1; done
           coverage run -m unittest
           coverage xml
