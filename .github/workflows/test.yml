@@ -12,9 +12,10 @@ jobs:
       - name: "Download coverage reporters"
         run: |
           mkdir -p ./reporter
-          curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./reporter/cc-test-reporter-linux
-          curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-darwin-amd64 > ./reporter/cc-test-reporter-darwin
-          curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-windows-amd64 > ./reporter/cc-test-reporter-windows.exe
+          curl -sS -L \
+            https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 -o ./reporter/cc-test-reporter-linux \
+            https://codeclimate.com/downloads/test-reporter/test-reporter-latest-darwin-amd64 -o ./reporter/cc-test-reporter-darwin \
+            https://codeclimate.com/downloads/test-reporter/test-reporter-latest-windows-amd64 -o ./reporter/cc-test-reporter-windows.exe
       - name: "Notify code climate of pending coverage upload"
         env:
           CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
