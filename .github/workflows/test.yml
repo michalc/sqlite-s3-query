@@ -133,5 +133,3 @@ jobs:
           until nc -w 10 127.0.0.1 9000; do sleep 1; done
           coverage run -m unittest
       - uses: codecov/codecov-action@v3
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
