@@ -132,11 +132,6 @@ jobs:
           ./minio/minio-darwin server ./data &
           until nc -w 10 127.0.0.1 9000; do sleep 1; done
           coverage run -m unittest
-      - name: "Save code coverage"
-        uses: actions/upload-artifact@v3
-        with:
-          name: coverage
-          path: ./coverage/*.json
       - uses: codecov/codecov-action@v3
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
