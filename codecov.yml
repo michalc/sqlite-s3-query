@@ -1,1 +1,3 @@
 comment: false
+notify:
+  wait_for_ci: yes
