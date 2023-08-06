@@ -829,7 +829,18 @@ def aws_sigv4_headers(access_key_id, secret_access_key, pre_auth_headers,
 
 @contextmanager
 def get_db(sqls):
-    with tempfile.TemporaryDirectory() as directory_name:
+
+    @contextmanager
+    def temporary_directory_ignore_cleanup_errors():
+        # A backport of the ignore_cleanup_errors=True parameter in
+        # TemporaryDirectory added in Python 3.10
+        try:
+            with tempfile.TemporaryDirectory() as directory_name:
+                yield directory_name
+        except (PermissionError, NotADirectoryError):
+            pass
+
+    with temporary_directory_ignore_cleanup_errors() as directory_name:
         db_path = os.path.join(directory_name, 'sqlite-s3-query-test.db')
         with sqlite3.connect(db_path, isolation_level=None) as con:
             cur = con.cursor()
