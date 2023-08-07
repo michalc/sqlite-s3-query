@@ -1,11 +1,11 @@
+import hmac
+import os
 from contextlib import contextmanager
 from ctypes import CFUNCTYPE, POINTER, Structure, create_string_buffer, pointer, cast, memmove, memset, sizeof, addressof, cdll, byref, string_at, c_char_p, c_int, c_double, c_int64, c_void_p, c_char
 from ctypes.util import find_library
+from datetime import datetime
 from functools import partial
 from hashlib import sha256
-import hmac
-from datetime import datetime
-import os
 from re import sub
 from time import time
 from urllib.parse import urlencode, urlsplit, quote
