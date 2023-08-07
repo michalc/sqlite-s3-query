@@ -54,6 +54,8 @@ jobs:
     needs: [download-minio, create-sqlite-amalgamation]
     strategy:
       matrix:
+        # If changing how many times tests are run, must also change in codecov.yml
+        # to ensure test coverage is reported only after all tests have finished
         os:
           - "macos-11"
           - "ubuntu-20.04"
