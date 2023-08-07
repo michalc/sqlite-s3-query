@@ -11,11 +11,15 @@ Inspired by [phiresky's sql.js-httpvfs](https://github.com/phiresky/sql.js-httpv
 
 ## Installation
 
+You can install sqlite-s3-query from [PyPI](https://pypi.org/project/sqlite-s3-query/) using pip.
+
 ```bash
 pip install sqlite_s3_query
 ```
 
-The libsqlite3 binary library is also required, but this is typically already installed on most systems. The earliest version of libsqlite3 known to work is 2012-12-12 (3.7.15).
+This will automatically install [HTTPX](https://www.python-httpx.org/), which is used to communicate with S3. A package often used to communciate with S3 from Python is [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html), but sqlite-s3-query does not use boto3.
+
+The libsqlite3 binary library is also required, but this is typically already installed on most systems. The earliest version of libsqlite3 known to work is 3.7.15 (2012-12-12).
 
 
 ## Usage
@@ -224,3 +228,4 @@ It is safe for multiple threads to call the same `query` function. Under the hoo
 - Linux (tested on Ubuntu 20.04), Windows (tested on Windows Server 2019), or macOS (tested on macOS 11)
 - SQLite >= 3.7.15, (tested on 3.7.15, 3.36.0, 3.42.0, and the default version available on each OS tested)
 - Python >= 3.6.7 (tested on 3.6.7, 3.7.1, 3.8.0, 3.9.0, 3.10.0, and 3.11.0)
+- HTTPX >= 0.18.2 (tested on 0.18.2)
