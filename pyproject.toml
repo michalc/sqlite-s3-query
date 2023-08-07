@@ -10,7 +10,7 @@ authors = [
 ]
 description = "Python context manager to query a SQLite file stored on S3"
 readme = "README.md"
-requires-python = ">=3.6.0"
+requires-python = ">=3.6.7"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
