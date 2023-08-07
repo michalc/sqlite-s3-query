@@ -24,6 +24,9 @@ dependencies = [
 dev = [
     "coverage",
 ]
+ci = [
+    "httpx==0.18.2",
+]
 
 [project.urls]
 "Home-page" = "https://github.com/michalc/sqlite-s3-query"

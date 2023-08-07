@@ -107,7 +107,7 @@ jobs:
           echo "LIBSQLITE3_PATH=${PWD}/libsqlite3.so.0" >> "$GITHUB_ENV"
       - name: "Install sqlite-s3-query and any dependencies"
         run: |
-          pip install ".[dev]"
+          pip install ".[dev,ci]"
       - name: "Test (Windows)"
         if: matrix.os == 'windows-2019'
         run: |
