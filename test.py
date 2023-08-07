@@ -233,8 +233,9 @@ class TestSqliteS3Query(unittest.TestCase):
                     SELECT my_col_a FROM my_table;
                     SELECT my_col_a FROM my_table LIMIT 10;
                 '''):
-                    for row in rows:
-                        raise Exception('Just after iterating first row')
+                    rows_it = iter(rows)
+                    next(rows_it)
+                    raise Exception('Just after iterating first row')
 
         with self.assertRaisesRegex(Exception, 'Multiple open statements'):
             with sqlite_s3_query_multi('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
@@ -248,12 +249,13 @@ class TestSqliteS3Query(unittest.TestCase):
                     SELECT my_col_a FROM my_table LIMIT 10;
                 '''))
                 columns_1, rows_1 = next(it)
-                for row in rows_1:
-                    break
+                rows_1_it = iter(rows_1)
+                next(rows_1_it)
 
                 columns_2, rows_2 = next(it)
-                for row in rows_2:
-                    raise Exception('Multiple open statements')
+                rows_2_it = iter(rows_2)
+                next(rows_2_it)
+                raise Exception('Multiple open statements')
 
         with self.assertRaisesRegex(Exception, 'Attempting to use finalized statement'):
             with sqlite_s3_query_multi('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
