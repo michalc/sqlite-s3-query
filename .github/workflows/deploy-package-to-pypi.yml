@@ -1,41 +1,41 @@
-name: Publish to PyPI
+name: Deploy package to PyPI
+
+###############################################################################
+
 on:
+
   release:
     types: [published]
+
+###############################################################################
+
 jobs:
+
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
       - uses: actions/setup-python@v3
         with:
           python-version: 3.11
-
       - name: Update version in pyproject.toml from current git tag
         run: >-
           sed -i "s/0\\.0\\.0\\.dev0/${GITHUB_REF/refs\/tags\/v/}/g" pyproject.toml
-
       - run: |
           pip install build
           python -m build
-
       - uses: actions/upload-artifact@v3
         with:
           path: ./dist
 
-  pypi-publish:
-    needs: ['build']
-    environment: 'publish-pypi'
-
-    name: upload release to PyPI
+  deploy:
+    needs: [build]
+    environment: pypi
     runs-on: ubuntu-latest
     permissions:
       id-token: write
     steps:
       - uses: actions/download-artifact@v3
-
-      - name: Publish package distributions to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages_dir: artifact/
