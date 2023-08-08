@@ -72,6 +72,12 @@ jobs:
           - "3.9.0"
           - "3.10.0"
           - "3.11.0"
+        package-extras:
+          - "ci-earliest"
+          - "ci-latest"
+        exclude:
+          - python-version: "3.6.7"
+            package-extras: "ci-latest"
     runs-on: '${{ matrix.os }}'
     env:
       SQLITE3_VERSION: ${{ matrix.sqlite-version }}
@@ -107,7 +113,7 @@ jobs:
           echo "LIBSQLITE3_PATH=${PWD}/libsqlite3.so.0" >> "$GITHUB_ENV"
       - name: "Install sqlite-s3-query and any dependencies"
         run: |
-          pip install ".[dev,ci]"
+          pip install ".[dev,${{ matrix.package-extras }}]"
       - name: "Test (Windows)"
         if: matrix.os == 'windows-2019'
         run: |

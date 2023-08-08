@@ -24,8 +24,11 @@ dependencies = [
 dev = [
     "coverage",
 ]
-ci = [
+ci-earliest = [
     "httpx==0.18.2",
+]
+ci-latest = [
+    "httpx==0.24.1",
 ]
 
 [project.urls]
