@@ -145,10 +145,7 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
             head_headers = response.headers
             next(response.iter_bytes(), b'')
 
-        try:
-            version_id = head_headers['x-amz-version-id']
-        except KeyError:
-            raise Exception('The bucket must have versioning enabled')
+        version_id = head_headers.get('x-amz-version-id', 'null')
 
         size = int(head_headers['content-length'])
 
