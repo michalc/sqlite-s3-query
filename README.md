@@ -2,7 +2,7 @@
 
 Python context managers to query a SQLite file stored on S3. It uses multiple HTTP range requests per query to avoid downloading the entire file, and so is suitable for large databases.
 
-All queries using the same instance of the context will query the same version of the database object in S3. This means that a context is roughly equivalent to a REPEATABLE READ transaction, and queries should complete succesfully even if the database is replaced concurrently by another S3 client. Versioning _must_ be enabled on the S3 bucket.
+All queries using the same instance of the context will query the same version of the database object in S3. This means that a context is roughly equivalent to a REPEATABLE READ transaction, and queries should complete succesfully even if the database is replaced concurrently by another S3 client. [Versioning _must_ be enabled on the S3 bucket](#versioning).
 
 SQL statements that write to the database are not supported. If you're looking for a way to write to a SQLite database in S3, try [sqlite-s3vfs](https://github.com/uktrade/sqlite-s3vfs).
 
@@ -220,7 +220,19 @@ with \
 
 ### Multithreading
 
-It is safe for multiple threads to call the same `query` function. Under the hood, each use of `query` uses a separate SQLite "connection" to the database combined with the`SQLITE_OPEN_NOMUTEX` flag, which makes this safe while not locking unnecessarily.
+It is safe for multiple threads to call the same `query` function. Under the hood, each use of `query` uses a separate SQLite "connection" to the database combined with the `SQLITE_OPEN_NOMUTEX` flag, which makes this safe while not locking unnecessarily.
+
+
+## Versioning
+
+sqlite-s3-query is only for versioned buckets, to the point that it's a feature that it will error if run on an unversioned bucket. This is to keep the scope of this project small while giving the highest chance possible that a bucket is configured to allow queries running successfully during the replacement of the underlying database object.
+
+This means that sqlite-s3-query is not for all use cases of querying SQLite databases on S3: specifically it won't work when versioning cannot be enabled. In these cases you will have to do something else. For example:
+
+- Use https://github.com/litements/s3sqlite - at the time of writing it does not require versioning
+- Use a fork of sqlite-s3-query that allows unversioned buckets, for example as in https://github.com/michalc/sqlite-s3-query/pull/84
+
+This is not necessarily a permanent decision - it is possible that in future sqlite-s3-query will support unversioned buckets.
 
 
 ## Compatibility
