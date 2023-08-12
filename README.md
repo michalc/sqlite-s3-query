@@ -1,6 +1,6 @@
 # sqlite-s3-query
 
-[![PyPI version](https://badge.fury.io/py/sqlite-s3-query.svg)](https://pypi.org/project/sqlite-s3-query/) [![.github/workflows/test.yml](https://github.com/michalc/sqlite-s3-query/actions/workflows/test.yml/badge.svg)](https://github.com/michalc/sqlite-s3-query/actions/workflows/test.yml) [![Test coverage](https://codecov.io/gh/michalc/sqlite-s3-query/branch/main/graph/badge.svg?token=8TY3ZEOY77)](https://codecov.io/gh/michalc/sqlite-s3-query)
+[![PyPI package](https://img.shields.io/pypi/v/sqlite-s3-query?label=PyPI%20package&color=%234c1)](https://pypi.org/project/sqlite-s3-query/) [![Test suite](https://img.shields.io/github/actions/workflow/status/michalc/sqlite-s3-query/test.yml?label=Test%20suite)](https://github.com/michalc/sqlite-s3-query/actions/workflows/test.yml) [![Code coverage](https://img.shields.io/codecov/c/github/michalc/sqlite-s3-query?label=Code%20coverage)](https://app.codecov.io/gh/michalc/sqlite-s3-query)
 
 Python context managers to query a SQLite file stored on S3. It uses multiple HTTP range requests per query to avoid downloading the entire file, and so is suitable for large databases.
 
