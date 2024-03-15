@@ -36,6 +36,7 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
     SQLITE_NOTFOUND = 12
     SQLITE_ROW = 100
     SQLITE_DONE = 101
+    SQLITE_IOERR_SHORT_READ = 522
     SQLITE_TRANSIENT = c_void_p(-1)
     SQLITE_OPEN_READONLY = 0x00000001
     SQLITE_OPEN_NOMUTEX = 0x00008000
@@ -208,7 +209,13 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
                 set_pending_exception(exception)
                 return SQLITE_IOERR
 
-            if offset != i_amt:
+            if offset < i_amt:
+                # The SQLite docs strongly suggest to fill unused with zeroes
+                remainder = i_amt - offset
+                memmove(p_out + offset, b'\0' * remainder, remainder)
+                return SQLITE_IOERR_SHORT_READ
+
+            if offset > i_amt:
                 return SQLITE_IOERR
 
             return SQLITE_OK
