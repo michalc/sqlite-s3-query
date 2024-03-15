@@ -238,7 +238,13 @@ This means that sqlite-s3-query is not for all use cases of querying SQLite data
 This is not necessarily a permanent decision - it is possible that in future sqlite-s3-query will support unversioned buckets.
 
 
-## Exception hierarchy
+## Exceptions
+
+Under the hood [HTTPX](https://www.python-httpx.org/) is used to communicate with S3, but any [exceptions raised by HTTPX](https://www.python-httpx.org/exceptions/) are passed through to client code unchanged. This includes `httpx.HTTPStatusError` when S3 returns a non-200 response. Most commonly this will be when S3 returns a 403 in the case of insufficient permissions on the database object being queried.
+
+All other exceptions raised inherit from `sqlite_s3_query.SQLiteS3QueryError` as described in the following hierarchy.
+
+### Exception hierarchy
 
 - `SQLiteS3QueryError`
 
