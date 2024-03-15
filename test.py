@@ -15,6 +15,7 @@ import urllib.parse
 import uuid
 
 import httpx
+from httpx import HTTPStatusError
 
 from sqlite_s3_query import (
     VersioningNotEnabledError,
@@ -411,8 +412,55 @@ class TestSqliteS3Query(unittest.TestCase):
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
         ), get_libsqlite3=get_libsqlite3) as query:
-            with self.assertRaisesRegex(SQLiteError, 'disk I/O error'):
+            with self.assertRaisesRegex(HTTPStatusError, r"\b416\b"):
                 query('SELECT 1').__enter__()
+
+    def test_incorrect_permission_on_context_enter(self):
+        with get_db([("CREATE TABLE my_table (my_col_a text, my_col_b text);",())]) as db:
+            put_object_with_versioning('my-bucket', 'my.db', db)
+
+        with self.assertRaisesRegex(HTTPStatusError, r"\b403\b"):
+            sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
+                'us-east-1',
+                'AKIAIOSFODNN7EXAMPLE',
+                'not-the-right-key',
+                None,
+            ), get_libsqlite3=get_libsqlite3).__enter__()
+
+    def test_incorrect_permission_on_run_query(self):
+        with get_db([("CREATE TABLE my_table (my_col_a text, my_col_b text);",())]) as db:
+            put_object_with_versioning('my-bucket', 'my.db', db)
+
+        creds = (
+            (
+                'us-east-1',
+                'AKIAIOSFODNN7EXAMPLE',
+                'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+                None,
+            ), (
+                'us-east-1',
+                'AKIAIOSFODNN7EXAMPLE',
+                'not-the-right-key',
+                None,
+            )
+        )
+        creds_it = iter(creds)
+
+        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: next(creds_it), get_libsqlite3=get_libsqlite3) as query:
+            with self.assertRaisesRegex(HTTPStatusError, r"\b403\b"):
+                query('SELECT 1').__enter__()
+
+    def test_short_db_header(self):
+        put_object_with_versioning('my-bucket', 'my.db', lambda: (b'*' * 99,))
+
+        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
+            'us-east-1',
+            'AKIAIOSFODNN7EXAMPLE',
+            'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            None,
+        ), get_libsqlite3=get_libsqlite3) as query:
+            with self.assertRaisesRegex(SQLiteError, 'disk I/O error'):
+                query("SELECT * FROM non_table").__enter__()
 
     def test_bad_db_header(self):
         put_object_with_versioning('my-bucket', 'my.db', lambda: (b'*' * 100,))
@@ -424,6 +472,18 @@ class TestSqliteS3Query(unittest.TestCase):
             None,
         ), get_libsqlite3=get_libsqlite3) as query:
             with self.assertRaisesRegex(SQLiteError, 'disk I/O error'):
+                query("SELECT * FROM non_table").__enter__()
+
+    def test_bad_db_first_page(self):
+        put_object_with_versioning('my-bucket', 'my.db', lambda: (b'*' * 4096,))
+
+        with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
+            'us-east-1',
+            'AKIAIOSFODNN7EXAMPLE',
+            'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            None,
+        ), get_libsqlite3=get_libsqlite3) as query:
+            with self.assertRaisesRegex(SQLiteError, 'not a database'):
                 query("SELECT * FROM non_table").__enter__()
 
     def test_bad_db_second_half(self):

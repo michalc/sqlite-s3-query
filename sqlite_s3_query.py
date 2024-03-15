@@ -1,5 +1,6 @@
 import hmac
 import os
+import threading
 from contextlib import contextmanager
 from ctypes import CFUNCTYPE, POINTER, Structure, create_string_buffer, pointer, cast, memmove, memset, sizeof, addressof, cdll, byref, string_at, c_char_p, c_int, c_double, c_int64, c_void_p, c_char
 from ctypes.util import find_library
@@ -69,13 +70,33 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
     body_hash = sha256(b'').hexdigest()
     scheme, netloc, path, _, _ = urlsplit(url)
 
+    # We could use contextvars, but they aren't introduced until Python 3.7
+    pending_exceptions = {}
+    pending_exception_lock = threading.Lock()
+
+    def set_pending_exception(exception):
+        thread_id = threading.get_ident()
+        with pending_exception_lock:
+            pending_exceptions[thread_id] = exception
+
+    def raise_any_pending_exception():
+        thread_id = threading.get_ident()
+        with pending_exception_lock:
+            try:
+                raise pending_exceptions.pop(thread_id)
+            except KeyError:
+                pass
+
     def run(func, *args):
         res = func(*args)
+        raise_any_pending_exception()
         if res != 0:
             raise SQLiteError(libsqlite3.sqlite3_errstr(res).decode())
 
     def run_with_db(db, func, *args):
-        if func(*args) != 0:
+        res = func(*args)
+        raise_any_pending_exception()
+        if res != 0:
             raise SQLiteError(libsqlite3.sqlite3_errmsg(db).decode())
 
     @contextmanager
@@ -183,7 +204,8 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
                         offset += len(chunk)
                         if offset > i_amt:
                             break
-            except Exception:
+            except Exception as exception:
+                set_pending_exception(exception)
                 return SQLITE_IOERR
 
             if offset != i_amt:
@@ -328,6 +350,7 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
             if res == SQLITE_DONE:
                 break
             if res != SQLITE_ROW:
+                raise_any_pending_exception()
                 raise SQLiteError(libsqlite3.sqlite3_errstr(res).decode())
 
             yield tuple(
