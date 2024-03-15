@@ -72,11 +72,11 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
     def run(func, *args):
         res = func(*args)
         if res != 0:
-            raise Exception(libsqlite3.sqlite3_errstr(res).decode())
+            raise SQLiteError(libsqlite3.sqlite3_errstr(res).decode())
 
     def run_with_db(db, func, *args):
         if func(*args) != 0:
-            raise Exception(libsqlite3.sqlite3_errmsg(db).decode())
+            raise SQLiteError(libsqlite3.sqlite3_errmsg(db).decode())
 
     @contextmanager
     def make_auth_request(http_client, method, params, headers):
@@ -148,7 +148,7 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
         try:
             version_id = head_headers['x-amz-version-id']
         except KeyError:
-            raise Exception('The bucket must have versioning enabled')
+            raise VersioningNotEnabledError('The bucket must have versioning enabled')
 
         size = int(head_headers['content-length'])
 
@@ -292,7 +292,7 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
             try:
                 return statements[statement]
             except KeyError:
-                raise Exception('Attempting to use finalized statement') from None
+                raise QueryContextClosedError('Attempting to use finalized statement') from None
 
         def finalize(statement):
             pp_stmt = statements.pop(statement)
@@ -328,7 +328,7 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
             if res == SQLITE_DONE:
                 break
             if res != SQLITE_ROW:
-                raise Exception(libsqlite3.sqlite3_errstr(res).decode())
+                raise SQLiteError(libsqlite3.sqlite3_errstr(res).decode())
 
             yield tuple(
                 extract[libsqlite3.sqlite3_column_type(pp_stmt, i)](pp_stmt, i)
@@ -394,3 +394,19 @@ def sqlite_s3_query(url, get_credentials=lambda now: (
     ) as query_base:
 
         yield partial(query, query_base)
+
+
+class SQLiteS3QueryError(Exception):
+    pass
+
+
+class VersioningNotEnabledError(SQLiteS3QueryError):
+    pass
+
+
+class SQLiteError(SQLiteS3QueryError):
+    pass
+
+
+class QueryContextClosedError(SQLiteS3QueryError):
+    pass

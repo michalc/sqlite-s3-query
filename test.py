@@ -16,7 +16,13 @@ import uuid
 
 import httpx
 
-from sqlite_s3_query import sqlite_s3_query, sqlite_s3_query_multi
+from sqlite_s3_query import (
+    VersioningNotEnabledError,
+    SQLiteError,
+    QueryContextClosedError,
+    sqlite_s3_query,
+    sqlite_s3_query_multi,
+)
 
 
 class TestSqliteS3Query(unittest.TestCase):
@@ -36,7 +42,7 @@ class TestSqliteS3Query(unittest.TestCase):
         ]) as db:
             put_object_without_versioning('bucket-without-versioning', 'my.db', db)
 
-        with self.assertRaisesRegex(Exception, 'The bucket must have versioning enabled'):
+        with self.assertRaisesRegex(VersioningNotEnabledError, 'The bucket must have versioning enabled'):
             sqlite_s3_query('http://localhost:9000/bucket-without-versioning/my.db', get_credentials=lambda now: (
                 'us-east-1',
                 'AKIAIOSFODNN7EXAMPLE',
@@ -98,7 +104,7 @@ class TestSqliteS3Query(unittest.TestCase):
 
         self.assertEqual(rows, [('some-text-a',)] * 500)
 
-        with self.assertRaisesRegex(Exception, 'Attempting to use finalized statement'):
+        with self.assertRaisesRegex(QueryContextClosedError, 'Attempting to use finalized statement'):
             with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
                 'us-east-1',
                 'AKIAIOSFODNN7EXAMPLE',
@@ -110,7 +116,7 @@ class TestSqliteS3Query(unittest.TestCase):
                         break
                 next(rows)
 
-        with self.assertRaisesRegex(Exception, 'Attempting to use finalized statement'):
+        with self.assertRaisesRegex(QueryContextClosedError, 'Attempting to use finalized statement'):
             with sqlite_s3_query('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
                 'us-east-1',
                 'AKIAIOSFODNN7EXAMPLE',
@@ -257,7 +263,7 @@ class TestSqliteS3Query(unittest.TestCase):
                 next(rows_2_it)
                 raise Exception('Multiple open statements')
 
-        with self.assertRaisesRegex(Exception, 'Attempting to use finalized statement'):
+        with self.assertRaisesRegex(QueryContextClosedError, 'Attempting to use finalized statement'):
             with sqlite_s3_query_multi('http://localhost:9000/my-bucket/my.db', get_credentials=lambda now: (
                 'us-east-1',
                 'AKIAIOSFODNN7EXAMPLE',
@@ -393,7 +399,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
         ), get_libsqlite3=get_libsqlite3) as query:
-            with self.assertRaisesRegex(Exception, 'no such table: non_table'):
+            with self.assertRaisesRegex(SQLiteError, 'no such table: non_table'):
                 query("SELECT * FROM non_table").__enter__()
 
     def test_empty_object(self):
@@ -405,7 +411,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
         ), get_libsqlite3=get_libsqlite3) as query:
-            with self.assertRaisesRegex(Exception, 'disk I/O error'):
+            with self.assertRaisesRegex(SQLiteError, 'disk I/O error'):
                 query('SELECT 1').__enter__()
 
     def test_bad_db_header(self):
@@ -417,7 +423,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
         ), get_libsqlite3=get_libsqlite3) as query:
-            with self.assertRaisesRegex(Exception, 'disk I/O error'):
+            with self.assertRaisesRegex(SQLiteError, 'disk I/O error'):
                 query("SELECT * FROM non_table").__enter__()
 
     def test_bad_db_second_half(self):
@@ -435,7 +441,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
         ), get_libsqlite3=get_libsqlite3) as query:
-            with self.assertRaisesRegex(Exception, 'database disk image is malformed'):
+            with self.assertRaisesRegex(SQLiteError, 'database disk image is malformed'):
                 with query("SELECT * FROM my_table") as (columns, rows):
                     list(rows)
 
@@ -649,7 +655,7 @@ class TestSqliteS3Query(unittest.TestCase):
                 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
                 None,
             ), get_http_client=get_http_client, get_libsqlite3=get_libsqlite3) as query:
-                with self.assertRaisesRegex(Exception, 'disk I/O error'):
+                with self.assertRaisesRegex(SQLiteError, 'disk I/O error'):
                     query('SELECT my_col_a FROM my_table').__enter__()
 
     def test_disconnection(self):
