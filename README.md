@@ -238,6 +238,25 @@ This means that sqlite-s3-query is not for all use cases of querying SQLite data
 This is not necessarily a permanent decision - it is possible that in future sqlite-s3-query will support unversioned buckets.
 
 
+## Exception hierarchy
+
+- `SQLiteS3QueryError`
+
+   The base class for explicitly raised exceptions.
+
+   - `VersioningNotEnabledError`
+
+      Versioning is not enabled on the bucket.
+
+   - `QueryContextClosedError`
+
+      A results iterable has been attempted to be used after the close of its surrounding query context.
+
+   - `SQLiteError`
+
+      SQLite has detected an error. The first element of the `args` member of the raised exception is the description of the error as provided by SQLite.
+
+
 ## Compatibility
 
 - Linux (tested on Ubuntu 20.04), Windows (tested on Windows Server 2019), or macOS (tested on macOS 11)
