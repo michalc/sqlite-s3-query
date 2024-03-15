@@ -459,7 +459,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
         ), get_libsqlite3=get_libsqlite3) as query:
-            with self.assertRaisesRegex(SQLiteError, 'disk I/O error'):
+            with self.assertRaisesRegex(SQLiteError, 'not a database'):
                 query("SELECT * FROM non_table").__enter__()
 
     def test_bad_db_header(self):
@@ -471,7 +471,7 @@ class TestSqliteS3Query(unittest.TestCase):
             'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
             None,
         ), get_libsqlite3=get_libsqlite3) as query:
-            with self.assertRaisesRegex(SQLiteError, 'disk I/O error'):
+            with self.assertRaisesRegex(SQLiteError, 'not a database'):
                 query("SELECT * FROM non_table").__enter__()
 
     def test_bad_db_first_page(self):
