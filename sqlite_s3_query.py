@@ -71,22 +71,17 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
     body_hash = sha256(b'').hexdigest()
     scheme, netloc, path, _, _ = urlsplit(url)
 
-    # We could use contextvars, but they aren't introduced until Python 3.7
-    pending_exceptions = {}
-    pending_exception_lock = threading.Lock()
+    local = threading.local()
+    local.pending_exception = None
 
     def set_pending_exception(exception):
-        thread_id = threading.get_ident()
-        with pending_exception_lock:
-            pending_exceptions[thread_id] = exception
+        local.pending_exception = exception
 
     def raise_any_pending_exception():
-        thread_id = threading.get_ident()
-        with pending_exception_lock:
-            try:
-                raise pending_exceptions.pop(thread_id)
-            except KeyError:
-                pass
+        to_raise = local.pending_exception
+        if to_raise is not None:
+            local.pending_exception = None
+            raise to_raise
 
     def run(func, *args):
         res = func(*args)
