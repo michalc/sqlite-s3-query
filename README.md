@@ -265,7 +265,7 @@ All other exceptions raised inherit from `sqlite_s3_query.SQLiteS3QueryError` as
 
 ## Compatibility
 
-- Linux (tested on Ubuntu 20.04), Windows (tested on Windows Server 2019), or macOS (tested on macOS 11)
+- Linux (tested on Ubuntu 20.04), Windows (tested on Windows Server 2019), or macOS (tested on macOS 12)
 - SQLite >= 3.7.15, (tested on 3.7.15, 3.36.0, 3.42.0, and the default version available on each OS tested)
 - Python >= 3.6.7 (tested on 3.6.7, 3.7.1, 3.8.0, 3.9.0, 3.10.0, and 3.11.0)
 - HTTPX >= 0.18.2 (tested on 0.18.2 with Python >= 3.6.7, and 0.24.1 with Python >= 3.7.1)
