@@ -57,7 +57,7 @@ jobs:
         # If changing how many times tests are run, must also change in codecov.yml
         # to ensure test coverage is reported only after all tests have finished
         os:
-          - "macos-11"
+          - "macos-12"
           - "ubuntu-20.04"
           - "windows-2019"
         sqlite-version:
@@ -107,7 +107,7 @@ jobs:
           gcc -shared sqlite3.c -o sqlite3.dll
           echo "LIBSQLITE3_PATH=${PWD}/sqlite3.dll" >> $env:GITHUB_ENV
       - name: "Compile SQLite from amalgamation (Ubuntu or macOS)"
-        if: (matrix.os == 'ubuntu-20.04' || matrix.os == 'macos-11') && matrix.sqlite-version != 'default'
+        if: (matrix.os == 'ubuntu-20.04' || matrix.os == 'macos-12') && matrix.sqlite-version != 'default'
         run: |
           gcc -shared -fPIC -o libsqlite3.so.0 sqlite3.c
           echo "LIBSQLITE3_PATH=${PWD}/libsqlite3.so.0" >> "$GITHUB_ENV"
@@ -133,11 +133,11 @@ jobs:
           until nc -w 10 127.0.0.1 9000; do sleep 1; done
           coverage run -m unittest
       - name: "Test (macOS)"
-        if: matrix.os == 'macos-11'
+        if: matrix.os == 'macos-12'
         run: |
           mkdir -p ./data
           chmod +x ./minio/minio-darwin
           ./minio/minio-darwin server ./data &
           until nc -w 10 127.0.0.1 9000; do sleep 1; done
           coverage run -m unittest
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
