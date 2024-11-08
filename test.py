@@ -148,6 +148,27 @@ class TestSqliteS3Query(unittest.TestCase):
 
         self.assertEqual(rows, [(500,)])
 
+    def test_select_with_named_params_public_bucket(self):
+        create_bucket('my-public-bucket')
+        disable_auth('my-public-bucket')
+        with get_db([
+            ("CREATE TABLE my_table (my_col_a text, my_col_b text);", ())
+        ] + [
+            ("INSERT INTO my_table VALUES " + ','.join(["('some-text-a', 'some-text-b')"] * 500), ()),
+            ("INSERT INTO my_table VALUES " + ','.join(["('some-text-c', 'some-text-d')"] * 100), ()),
+        ]) as db:
+            put_object_with_versioning('my-public-bucket', 'my.db', db)
+
+        with sqlite_s3_query(
+                'http://localhost:9000/my-public-bucket/my.db',
+                get_credentials=None,
+                get_libsqlite3=get_libsqlite3
+        ) as query:
+            with query('SELECT COUNT(*) FROM my_table WHERE my_col_a = :first', named_params=((':first', 'some-text-a'),)) as (columns, rows):
+                rows = list(rows)
+
+        self.assertEqual(rows, [(500,)])
+
     def test_select_large(self):
         empty = (bytes(4050),)
 
@@ -840,6 +861,36 @@ def enable_versioning(bucket):
     response = httpx.put(url, content=content, headers=headers)
     response.raise_for_status()
 
+def disable_auth(bucket):
+    content = f'''
+        {{
+            "Version": "2012-10-17",
+            "Statement": [
+                {{
+                    "Sid": "Stmt1405592139000",
+                    "Effect": "Allow",
+                    "Principal": "*",
+                    "Action": [
+                        "s3:GetObject",
+                        "s3:GetObjectVersion"
+                    ],
+                    "Resource": [
+                        "arn:aws:s3:::{bucket}/*"
+                    ]
+                }}
+            ]
+        }}
+    '''.encode()
+    url = f'http://127.0.0.1:9000/{bucket}/?policy'
+    body_hash = hashlib.sha256(content).hexdigest()
+    parsed_url = urllib.parse.urlsplit(url)
+
+    headers = aws_sigv4_headers(
+        'AKIAIOSFODNN7EXAMPLE', 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+        (), 's3', 'us-east-1', parsed_url.netloc, 'PUT', parsed_url.path, (('policy', ''),), body_hash,
+    )
+    response = httpx.put(url, content=content, headers=headers)
+    response.raise_for_status()
 
 def aws_sigv4_headers(access_key_id, secret_access_key, pre_auth_headers,
                       service, region, host, method, path, params, body_hash):

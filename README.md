@@ -175,6 +175,26 @@ with \
         print(row)
 ```
 
+
+### Public Buckets
+
+For public buckets where credentials should not be passed, pass `None` as the `get_credentials` parameter.
+
+```python
+query_my_db = partial(sqlite_s3_query,
+    url='https://my-public-bucket.s3.eu-west-2.amazonaws.com/my-db.sqlite',
+    get_credentials=None,
+)
+
+with \
+        query_my_db() as query, \
+        query('SELECT * FROM my_table_2 WHERE my_col = ?', params=('my-value',)) as (columns, rows):
+
+    for row in rows:
+        print(row)
+```
+
+
 ### HTTP Client
 
 The HTTP client can be changed by overriding the the default `get_http_client` parameter, which is shown below.
