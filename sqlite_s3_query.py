@@ -74,6 +74,23 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
     local = threading.local()
     local.pending_exception = None
 
+    def get_request_headers_for_private_buckets(method, params, headers, now):
+        region, access_key_id, secret_access_key, session_token = get_credentials(now)
+        to_auth_headers = headers + (
+            (('x-amz-security-token', session_token),) if session_token is not None else \
+            ()
+        )
+        return aws_sigv4_headers(
+            now, access_key_id, secret_access_key, region, method, to_auth_headers, params,
+        )
+
+    def get_request_headers_for_public_buckets(_, __, headers, ___):
+        return headers
+
+    get_request_headers = \
+        get_request_headers_for_private_buckets if get_credentials is not None else \
+        get_request_headers_for_public_buckets
+
     def set_pending_exception(exception):
         local.pending_exception = exception
 
@@ -98,14 +115,7 @@ def sqlite_s3_query_multi(url, get_credentials=lambda now: (
     @contextmanager
     def make_auth_request(http_client, method, params, headers):
         now = datetime.utcnow()
-        region, access_key_id, secret_access_key, session_token = get_credentials(now)
-        to_auth_headers = headers + (
-            (('x-amz-security-token', session_token),) if session_token is not None else \
-            ()
-        )
-        request_headers = aws_sigv4_headers(
-            now, access_key_id, secret_access_key, region, method, to_auth_headers, params,
-        )
+        request_headers = get_request_headers(method, params, headers, now)
         url = f'{scheme}://{netloc}{path}'
         with http_client.stream(method, url, params=params, headers=request_headers) as response:
             response.raise_for_status()
